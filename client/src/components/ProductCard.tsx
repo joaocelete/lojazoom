@@ -6,12 +6,12 @@ import { ShoppingCart, Ruler } from "lucide-react";
 import { useState } from "react";
 
 interface ProductCardProps {
-  id: number;
+  id: string;
   name: string;
   description: string;
   pricePerM2: number;
   image: string;
-  onAddToCart?: (productId: number, width: number, height: number, total: number) => void;
+  onAddToCart?: (productId: string, width: number, height: number, total: number) => void;
 }
 
 export default function ProductCard({ 

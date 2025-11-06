@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { Product } from "@shared/schema";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import TrustBadges from "@/components/TrustBadges";
@@ -8,91 +10,28 @@ import Cart from "@/components/Cart";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useCart } from "@/contexts/CartContext";
 import vinylImage from "@assets/generated_images/Vinyl_banner_product_photo_7f6d1908.png";
 import stickerImage from "@assets/generated_images/Adhesive_vinyl_sticker_product_9ad4721d.png";
 import lonaImage from "@assets/generated_images/Outdoor_lona_banner_material_f46086fc.png";
 
-// todo: remove mock functionality
-const mockProducts = [
-  {
-    id: 1,
-    name: "Banner Vinílico Premium",
-    description: "Banner de alta qualidade, ideal para ambientes internos e externos com impressão em alta resolução",
-    pricePerM2: 45.90,
-    image: vinylImage
-  },
-  {
-    id: 2,
-    name: "Adesivo Vinílico",
-    description: "Adesivo de vinil autocolante, perfeito para aplicação em vidros, paredes e veículos",
-    pricePerM2: 35.00,
-    image: stickerImage
-  },
-  {
-    id: 3,
-    name: "Lona para Outdoor",
-    description: "Lona resistente para uso externo, ideal para fachadas e outdoors com proteção UV",
-    pricePerM2: 52.90,
-    image: lonaImage
-  },
-  {
-    id: 4,
-    name: "Banner Lona 440g",
-    description: "Lona premium alta gramatura, extra resistente para uso prolongado em ambientes externos",
-    pricePerM2: 58.90,
-    image: vinylImage
-  },
-  {
-    id: 5,
-    name: "Adesivo Perfurado",
-    description: "Adesivo perfurado para vidros, permite visibilidade de dentro para fora",
-    pricePerM2: 42.00,
-    image: stickerImage
-  },
-  {
-    id: 6,
-    name: "Banner Blackout",
-    description: "Banner com bloqueio total de luz, ideal para backlight e iluminação interna",
-    pricePerM2: 48.90,
-    image: lonaImage
-  }
-];
-
-interface CartItem {
-  id: number;
-  name: string;
-  image: string;
-  width: number;
-  height: number;
-  pricePerM2: number;
-  total: number;
-}
-
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { addItem, totalItems } = useCart();
 
-  const handleAddToCart = (productId: number, width: number, height: number, total: number) => {
-    const product = mockProducts.find(p => p.id === productId);
+  const { data: productsData, isLoading } = useQuery<{ products: Product[] }>({
+    queryKey: ["/api/products?active=true"],
+  });
+
+  const products = productsData?.products || [];
+
+  const handleAddToCart = (productId: string, width: number, height: number, total: number) => {
+    const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    const newItem: CartItem = {
-      id: Date.now(),
-      name: product.name,
-      image: product.image,
-      width,
-      height,
-      pricePerM2: product.pricePerM2,
-      total
-    };
-
-    setCartItems(prev => [...prev, newItem]);
+    addItem(product, width, height, total);
     setIsCartOpen(true);
-  };
-
-  const handleRemoveItem = (id: number) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
   };
 
   const scrollToProducts = () => {
@@ -102,9 +41,9 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header 
-        cartItemCount={cartItems.length}
+        cartItemCount={totalItems}
         onCartClick={() => setIsCartOpen(true)}
-        onLoginClick={() => console.log("Login clicked")}
+        onLoginClick={() => setLocation("/login")}
       />
 
       <main className="flex-1">
@@ -130,13 +69,27 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-              {mockProducts.map(product => (
-                <ProductCard
-                  key={product.id}
-                  {...product}
-                  onAddToCart={handleAddToCart}
-                />
-              ))}
+              {isLoading ? (
+                <div className="col-span-full text-center py-20 text-muted-foreground">
+                  Carregando produtos...
+                </div>
+              ) : products.length === 0 ? (
+                <div className="col-span-full text-center py-20 text-muted-foreground">
+                  Nenhum produto disponível no momento.
+                </div>
+              ) : (
+                products.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description}
+                    pricePerM2={parseFloat(product.pricePerM2)}
+                    image={product.imageUrl || vinylImage}
+                    onAddToCart={handleAddToCart}
+                  />
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -236,11 +189,8 @@ export default function Home() {
       <Footer />
 
       <Cart
-        items={cartItems}
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        onRemoveItem={handleRemoveItem}
-        onCheckout={() => console.log("Checkout with items:", cartItems)}
       />
     </div>
   );

@@ -1,7 +1,17 @@
-import { ShoppingCart, Menu, User, Search } from "lucide-react";
+import { ShoppingCart, Menu, User, Search, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import { useState } from "react";
 
 interface HeaderProps {
@@ -12,6 +22,13 @@ interface HeaderProps {
 
 export default function Header({ cartItemCount = 0, onCartClick, onLoginClick }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, logout, isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-foreground/95 backdrop-blur-lg text-background border-b border-white/10 shadow-lg">
@@ -57,15 +74,49 @@ export default function Header({ cartItemCount = 0, onCartClick, onLoginClick }:
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onLoginClick}
-              className="text-background hover:text-background hover:bg-white/10 rounded-full"
-              data-testid="button-login"
-            >
-              <User className="h-5 w-5" />
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-background hover:text-background hover:bg-white/10 rounded-full"
+                    data-testid="button-user-menu"
+                  >
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Painel Admin
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onLoginClick}
+                className="text-background hover:text-background hover:bg-white/10 rounded-full"
+                data-testid="button-login"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            )}
 
             <Button
               variant="default"

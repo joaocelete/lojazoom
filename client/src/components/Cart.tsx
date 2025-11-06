@@ -1,31 +1,90 @@
 import { X, Trash2, ShoppingBag, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface CartItem {
-  id: number;
-  name: string;
-  image: string;
-  width: number;
-  height: number;
-  pricePerM2: number;
-  total: number;
-}
+import { useCart } from "@/contexts/CartContext";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface CartProps {
-  items: CartItem[];
   isOpen: boolean;
   onClose: () => void;
-  onRemoveItem?: (id: number) => void;
-  onCheckout?: () => void;
 }
 
-export default function Cart({ items, isOpen, onClose, onRemoveItem, onCheckout }: CartProps) {
+export default function Cart({ isOpen, onClose }: CartProps) {
+  const { items, removeItem, clearCart, subtotal } = useCart();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
   if (!isOpen) return null;
 
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const shipping = 45.00; // todo: remove mock functionality
+  const shipping = 45.00;
   const total = subtotal + shipping;
+
+  const checkoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) {
+        throw new Error("Login necessário");
+      }
+
+      const orderItems = items.map(item => ({
+        productId: item.productId,
+        width: item.width.toString(),
+        height: item.height.toString(),
+      }));
+
+      const res = await apiRequest("POST", "/api/orders", {
+        items: orderItems,
+        shippingAddress: "Endereço padrão",
+        paymentMethod: "pending",
+        subtotal: subtotal.toString(),
+        shipping: shipping.toString(),
+        total: total.toString(),
+        status: "pending",
+      });
+
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Pedido criado com sucesso!",
+        description: "Você será redirecionado para o pagamento.",
+      });
+      clearCart();
+      onClose();
+    },
+    onError: (error: Error) => {
+      if (error.message.includes("401")) {
+        toast({
+          title: "Login necessário",
+          description: "Faça login para finalizar sua compra.",
+          variant: "destructive",
+        });
+        setLocation("/login");
+      } else {
+        toast({
+          title: "Erro ao criar pedido",
+          description: "Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const handleCheckout = () => {
+    if (!user) {
+      toast({
+        title: "Login necessário",
+        description: "Faça login para finalizar sua compra.",
+      });
+      setLocation("/login");
+      return;
+    }
+    checkoutMutation.mutate();
+  };
 
   return (
     <>
@@ -83,13 +142,13 @@ export default function Cart({ items, isOpen, onClose, onRemoveItem, onCheckout 
                     <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                       <img 
                         src={item.image} 
-                        alt={item.name}
+                        alt={item.productName}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0 space-y-2">
                       <h3 className="font-bold text-base truncate" data-testid={`text-cart-item-name-${item.id}`}>
-                        {item.name}
+                        {item.productName}
                       </h3>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="px-2 py-1 bg-muted rounded">
@@ -106,7 +165,7 @@ export default function Cart({ items, isOpen, onClose, onRemoveItem, onCheckout 
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => onRemoveItem?.(item.id)}
+                      onClick={() => removeItem(item.id)}
                       className="rounded-full hover:bg-destructive/10 flex-shrink-0"
                       data-testid={`button-remove-item-${item.id}`}
                     >
@@ -136,10 +195,11 @@ export default function Cart({ items, isOpen, onClose, onRemoveItem, onCheckout 
               <Button 
                 className="w-full h-14 text-base font-bold shadow-lg" 
                 size="lg"
-                onClick={onCheckout}
+                onClick={handleCheckout}
+                disabled={checkoutMutation.isPending}
                 data-testid="button-checkout"
               >
-                Finalizar Compra
+                {checkoutMutation.isPending ? "Processando..." : "Finalizar Compra"}
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
