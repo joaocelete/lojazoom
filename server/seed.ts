@@ -18,6 +18,19 @@ async function seed() {
     console.log("✅ Admin user created: admin@printbrasil.com / admin123");
   }
 
+  // Create test customer user
+  const customerPassword = await hashPassword("cliente123");
+  const [customer] = await db.insert(users).values({
+    email: "cliente@printbrasil.com",
+    password: customerPassword,
+    name: "Cliente Teste",
+    role: "customer",
+  }).returning().onConflictDoNothing();
+
+  if (customer) {
+    console.log("✅ Customer user created: cliente@printbrasil.com / cliente123");
+  }
+
   // Create sample products
   const sampleProducts = [
     {
