@@ -1,14 +1,29 @@
 import { useState } from "react";
-import AdminSidebar from "@/components/AdminSidebar";
 import AdminProductForm from "@/components/AdminProductForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Trash2, Package, ShoppingBag, Users, Settings, LogOut, BarChart, Menu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import type { Order, Product } from "@shared/schema";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 function OrdersList() {
   const { data, isLoading } = useQuery<{ orders: Order[] }>({
@@ -195,6 +210,67 @@ function ProductsList({ onShowForm }: { onShowForm: () => void }) {
   );
 }
 
+function AppSidebar({ currentPage, onNavigate }: { currentPage: string; onNavigate: (page: string) => void }) {
+  const { logout } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const menuItems = [
+    { id: "dashboard", icon: BarChart, label: "Dashboard" },
+    { id: "products", icon: Package, label: "Produtos" },
+    { id: "orders", icon: ShoppingBag, label: "Pedidos" },
+    { id: "users", icon: Users, label: "Usuários" },
+    { id: "settings", icon: Settings, label: "Configurações" }
+  ];
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="p-6 border-b border-border">
+        <h1 className="text-2xl font-bold text-primary">PrintBrasil</h1>
+        <p className="text-sm text-muted-foreground mt-1">Painel Administrativo</p>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => onNavigate(item.id)}
+                      isActive={currentPage === item.id}
+                      data-testid={`link-admin-${item.id}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="p-4 border-t border-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="h-5 w-5" />
+              <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
 export default function Admin() {
   const [currentPage, setCurrentPage] = useState("products");
   const [showProductForm, setShowProductForm] = useState(false);
@@ -272,18 +348,25 @@ export default function Admin() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <AdminSidebar
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-        onLogout={() => console.log("Logout")}
-      />
-      
-      <div className="flex-1 overflow-auto">
-        <div className="container mx-auto p-6 max-w-6xl">
-          {renderContent()}
+    <SidebarProvider>
+      <div className="flex h-screen w-full overflow-hidden">
+        <AppSidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+        
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="flex items-center gap-2 border-b p-4 lg:hidden">
+            <SidebarTrigger data-testid="button-sidebar-toggle">
+              <Menu className="h-5 w-5" />
+            </SidebarTrigger>
+            <h2 className="font-bold">PrintBrasil Admin</h2>
+          </header>
+          
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto p-4 md:p-6 max-w-6xl">
+              {renderContent()}
+            </div>
+          </main>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
