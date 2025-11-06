@@ -26,13 +26,6 @@ export default function Home() {
 
   const products = productsData?.products || [];
 
-  const handleAddToCart = (productId: string, width: number, height: number, total: number) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    addItem(product, width, height, total);
-    setIsCartOpen(true);
-  };
 
   const scrollToProducts = () => {
     document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
@@ -86,7 +79,6 @@ export default function Home() {
                     description={product.description}
                     pricePerM2={parseFloat(product.pricePerM2)}
                     image={product.imageUrl || vinylImage}
-                    onAddToCart={handleAddToCart}
                   />
                 ))
               )}

@@ -143,13 +143,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Order Routes
   app.post("/api/orders", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      const { items, shippingAddress, paymentMethod, subtotal: clientSubtotal, shipping: clientShipping, total: clientTotal } = req.body;
+      const { 
+        items, 
+        shippingAddress, 
+        paymentMethod, 
+        subtotal: clientSubtotal, 
+        artCreationFee: clientArtFee,
+        shipping: clientShipping, 
+        total: clientTotal 
+      } = req.body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Carrinho vazio" });
       }
 
       let calculatedSubtotal = 0;
+      let calculatedArtFee = 0;
       const orderItemsData = [];
 
       for (const item of items) {
@@ -158,9 +167,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: `Produto ${item.productId} não encontrado` });
         }
 
-        const area = parseFloat(item.width) * parseFloat(item.height);
-        const itemTotal = area * parseFloat(product.pricePerM2);
+        const width = parseFloat(item.width);
+        const height = parseFloat(item.height);
+        
+        if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+          return res.status(400).json({ message: "Dimensões inválidas" });
+        }
+        
+        const area = width * height;
+        const pricePerM2 = parseFloat(product.pricePerM2);
+        
+        if (isNaN(pricePerM2)) {
+          return res.status(500).json({ message: "Erro no preço do produto" });
+        }
+        
+        const itemTotal = area * pricePerM2;
         calculatedSubtotal += itemTotal;
+
+        const rawArtFee = item.artCreationFee || "0";
+        const artCreationFee = parseFloat(rawArtFee);
+        
+        if (isNaN(artCreationFee) || artCreationFee < 0) {
+          return res.status(400).json({ message: "Taxa de criação de arte inválida" });
+        }
+        calculatedArtFee += artCreationFee;
 
         orderItemsData.push({
           productId: product.id,
@@ -170,15 +200,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           area: area.toString(),
           pricePerM2: product.pricePerM2,
           total: itemTotal.toString(),
+          artOption: item.artOption || "upload",
+          artFile: item.artFile || null,
+          artCreationFee: artCreationFee.toString(),
         });
       }
 
       const calculatedShipping = 45.00;
-      const calculatedTotal = calculatedSubtotal + calculatedShipping;
+      const calculatedTotal = calculatedSubtotal + calculatedArtFee + calculatedShipping;
 
-      if (Math.abs(calculatedSubtotal - parseFloat(clientSubtotal)) > 0.01 ||
-          Math.abs(calculatedShipping - parseFloat(clientShipping)) > 0.01 ||
-          Math.abs(calculatedTotal - parseFloat(clientTotal)) > 0.01) {
+      const clientSubtotalNum = parseFloat(clientSubtotal);
+      const clientArtFeeNum = parseFloat(clientArtFee || "0");
+      const clientShippingNum = parseFloat(clientShipping);
+      const clientTotalNum = parseFloat(clientTotal);
+
+      if (!isFinite(clientSubtotalNum) || !isFinite(clientArtFeeNum) || 
+          !isFinite(clientShippingNum) || !isFinite(clientTotalNum)) {
+        return res.status(400).json({ message: "Valores inválidos enviados" });
+      }
+
+      console.log("Order validation:", {
+        calculatedSubtotal,
+        clientSubtotalNum,
+        calculatedArtFee,
+        clientArtFeeNum,
+        calculatedShipping,
+        clientShippingNum,
+        calculatedTotal,
+        clientTotalNum
+      });
+
+      if (Math.abs(calculatedSubtotal - clientSubtotalNum) > 0.01 ||
+          Math.abs(calculatedArtFee - clientArtFeeNum) > 0.01 ||
+          Math.abs(calculatedShipping - clientShippingNum) > 0.01 ||
+          Math.abs(calculatedTotal - clientTotalNum) > 0.01) {
+        console.error("Order validation failed", {
+          subtotalDiff: Math.abs(calculatedSubtotal - clientSubtotalNum),
+          artFeeDiff: Math.abs(calculatedArtFee - clientArtFeeNum),
+          shippingDiff: Math.abs(calculatedShipping - clientShippingNum),
+          totalDiff: Math.abs(calculatedTotal - clientTotalNum)
+        });
         return res.status(400).json({ message: "Valores calculados não conferem. Por favor, recarregue o carrinho." });
       }
 

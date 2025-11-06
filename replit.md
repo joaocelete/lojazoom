@@ -95,7 +95,11 @@ order_items
 │   └── src/
 │       ├── components/    # Componentes reutilizáveis
 │       ├── contexts/      # AuthContext, CartContext
-│       ├── pages/         # Páginas (Home, Login, Admin, etc)
+│       ├── pages/         
+│       │   ├── Home.tsx          # Homepage com lista de produtos
+│       │   ├── ProductDetail.tsx # **NOVO** - Página individual do produto
+│       │   ├── Login.tsx         # Autenticação
+│       │   └── Admin.tsx         # Painel administrativo
 │       └── lib/           # Utilitários (queryClient, utils)
 ├── server/                # Backend Express
 │   ├── auth.ts           # JWT/bcrypt authentication
@@ -183,9 +187,13 @@ npm run seed
 - [x] Seed com admin + cliente de teste + 6 produtos de exemplo
 - [x] Painel admin - visualização de pedidos
 - [x] Sistema de carrinho de compras funcional
-- [x] Testes E2E completos (login, carrinho, checkout, admin)
+- [x] **Página de produto individual** - Estilo e-commerce moderno
+- [x] **Opções de arte** - Upload de arquivo ou criação (+R$ 35)
+- [x] **Persistência de carrinho** - localStorage (mantém após login)
+- [x] Validação backend de taxa de criação de arte
 
 ### Pendente 🚧
+- [x] **EM TESTE** - Debugging do cálculo de preços (NaN no carrinho)
 - [ ] Integração Mercado Pago (Pix, cartão, boleto)
 - [ ] Cálculo automático de frete (Super Frete / Correios)
 - [ ] Input de endereço real no checkout
@@ -200,15 +208,31 @@ npm run seed
 
 ## Notas Importantes
 
+### Nova Arquitetura de Produtos
+- **Homepage**: Lista de produtos com botão "Ver Produto"
+- **Página de Produto** (`/product/:id`): Configuração completa
+  - Cálculo de dimensões (largura × altura)
+  - Escolha de opções de arte (upload ou criação)
+  - Visualização de preço em tempo real
+  - Adicionar ao carrinho
+- **Fluxo**: Homepage → ProductDetail → Carrinho → Checkout
+
+### Opções de Arte
+- **Upload** (padrão): Cliente envia PDF/CDR/AI - sem custo
+- **Criação**: PrintBrasil cria a arte - R$ 35,00 por item
+- Taxa de criação validada no backend
+
 ### Segurança
-- Backend valida todos os preços server-side para prevenir manipulação
+- Backend valida todos os preços server-side (produtos + arte)
 - JWT_SECRET deve ser configurado em produção
 - Senhas nunca são armazenadas em plain text (bcrypt)
 
 ### Preços
-- Todos os valores são armazenados como strings para evitar problemas de precisão decimal
-- Cálculo: `área (m²) = largura × altura` → `total = área × pricePerM2`
-- Frete fixo de R$ 45,00 (temporário, aguardando integração com API)
+- Todos os valores são armazenados como strings (decimal PostgreSQL)
+- Cálculo: `área (m²) = largura × altura` → `subtotal = área × pricePerM2`
+- Taxa de arte: R$ 35,00 se opção "create"
+- Frete fixo: R$ 45,00 (temporário)
+- **Total = subtotal + artCreationFee + shipping**
 
 ### Roles
 - **admin**: Acesso completo (produtos, pedidos, usuários)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import type { Product } from "@shared/schema";
 
 export interface CartItem {
@@ -10,23 +10,50 @@ export interface CartItem {
   height: number;
   pricePerM2: number;
   total: number;
+  artOption: "upload" | "create";
+  artFile?: string;
+  artCreationFee: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: Product, width: number, height: number, total: number) => void;
+  addItem: (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
+  artCreationFeeTotal: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    
+    const saved = localStorage.getItem("cart");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        
+        return parsed.map((item: any) => ({
+          ...item,
+          width: Number(item.width) || 0,
+          height: Number(item.height) || 0,
+          pricePerM2: Number(item.pricePerM2) || 0,
+          total: Number(item.total) || 0,
+          artCreationFee: Number(item.artCreationFee) || 0,
+        }));
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
-  const addItem = (product: Product, width: number, height: number, total: number) => {
+  const addItem = (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string) => {
+    const artCreationFee = artOption === "create" ? 35.00 : 0;
     const newItem: CartItem = {
       id: `${product.id}-${Date.now()}`,
       productId: product.id,
@@ -36,7 +63,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       height,
       pricePerM2: parseFloat(product.pricePerM2),
       total,
+      artOption,
+      artFile,
+      artCreationFee,
     };
+    
+    console.log("CartContext - addItem:", {
+      productName: product.name,
+      total,
+      totalType: typeof total,
+      isNaN: isNaN(total),
+      artCreationFee,
+      newItem
+    });
+    
     setItems((prev) => [...prev, newItem]);
   };
 
@@ -48,8 +88,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   };
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cart", JSON.stringify(items));
+    }
+  }, [items]);
+
   const totalItems = items.length;
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const artCreationFeeTotal = items.reduce((sum, item) => sum + item.artCreationFee, 0);
 
   return (
     <CartContext.Provider
@@ -60,6 +107,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         totalItems,
         subtotal,
+        artCreationFeeTotal,
       }}
     >
       {children}

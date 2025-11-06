@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import Home from "@/pages/Home";
 import Portfolio from "@/pages/Portfolio";
+import ProductDetail from "@/pages/ProductDetail";
 import Login from "@/pages/Login";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/portfolio" component={Portfolio} />
+      <Route path="/product/:id" component={ProductDetail} />
       <Route path="/login" component={Login} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />

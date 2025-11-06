@@ -70,6 +70,9 @@ export const orderItems = pgTable("order_items", {
   area: decimal("area", { precision: 10, scale: 2 }).notNull(),
   pricePerM2: decimal("price_per_m2", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  artOption: text("art_option").notNull().default("upload"),
+  artFile: text("art_file"),
+  artCreationFee: decimal("art_creation_fee", { precision: 10, scale: 2 }).notNull().default("0"),
 });
 
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
