@@ -25,22 +25,22 @@ export default function TrustBadges() {
   ];
 
   return (
-    <section className="py-12 bg-card border-y border-card-border">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+    <section className="py-16 lg:py-20 bg-gradient-to-b from-background via-muted/30 to-background">
+      <div className="container mx-auto px-4 lg:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {badges.map((badge, index) => {
             const Icon = badge.icon;
             return (
               <div 
                 key={index}
-                className="text-center"
+                className="text-center group"
                 data-testid={`trust-badge-${index}`}
               >
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-primary/10 rounded-full mb-3">
-                  <Icon className="h-7 w-7 text-primary" />
+                <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <Icon className="h-8 w-8 lg:h-10 lg:w-10 text-primary" />
                 </div>
-                <h3 className="font-semibold mb-1">{badge.title}</h3>
-                <p className="text-sm text-muted-foreground">{badge.description}</p>
+                <h3 className="font-bold text-base lg:text-lg mb-2">{badge.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{badge.description}</p>
               </div>
             );
           })}
