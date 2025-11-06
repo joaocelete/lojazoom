@@ -242,6 +242,45 @@ npm run seed
    - Notificações de status
    - Responsividade mobile
 
+## Acesso ao Painel Admin
+
+### Credenciais
+- **URL:** `/admin` (após login)
+- **Email:** admin@printbrasil.com
+- **Senha:** admin123
+
+> ⚠️ **IMPORTANTE:** Troque a senha padrão em produção!
+
+### Funcionalidades Disponíveis
+- ✅ Gerenciar Produtos (criar, listar, deletar)
+- ✅ Visualizar Pedidos (todos os pedidos do sistema)
+- 🔄 Gerenciar Usuários (em desenvolvimento)
+- 🔄 Dashboard com estatísticas (em desenvolvimento)
+
+📖 **Guia Completo:** Consulte [ADMIN_GUIDE.md](./ADMIN_GUIDE.md) para instruções detalhadas sobre configuração de chaves de API, deployment e mais.
+
+## Configuração de Chaves de API
+
+### Como Adicionar Secrets no Replit
+
+1. Abra a ferramenta **Secrets** (ícone 🔒) no painel lateral
+2. Clique em "New Secret"
+3. Preencha:
+   - **Key:** Nome da variável (ex: `MERCADOPAGO_ACCESS_TOKEN`)
+   - **Value:** Valor secreto
+4. Clique em "Add Secret"
+
+### Secrets Disponíveis
+
+Automaticamente configuradas:
+- `DATABASE_URL` - Conexão PostgreSQL
+- `SESSION_SECRET` - Chave JWT (obrigatório em produção)
+
+Para integrações futuras, adicione:
+- `MERCADOPAGO_ACCESS_TOKEN` - Token Mercado Pago
+- `MERCADOPAGO_PUBLIC_KEY` - Chave pública MP
+- `SUPERFRETE_TOKEN` - Token Super Frete
+
 ## Contribuindo
 
 Este projeto segue as guidelines de desenvolvimento fullstack JavaScript do Replit. Principais convenções:
