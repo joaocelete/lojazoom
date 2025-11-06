@@ -2,9 +2,12 @@ import { useState } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import TrustBadges from "@/components/TrustBadges";
+import ClientLogos from "@/components/ClientLogos";
 import ProductCard from "@/components/ProductCard";
 import Cart from "@/components/Cart";
 import Footer from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 import vinylImage from "@assets/generated_images/Vinyl_banner_product_photo_7f6d1908.png";
 import stickerImage from "@assets/generated_images/Adhesive_vinyl_sticker_product_9ad4721d.png";
 import lonaImage from "@assets/generated_images/Outdoor_lona_banner_material_f46086fc.png";
@@ -66,6 +69,7 @@ interface CartItem {
 }
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -108,6 +112,8 @@ export default function Home() {
         
         <TrustBadges />
 
+        <ClientLogos />
+
         <section id="products" className="py-20 lg:py-28 bg-background">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="text-center mb-16 space-y-4">
@@ -133,6 +139,56 @@ export default function Home() {
                   onAddToCart={handleAddToCart}
                 />
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 lg:py-28 bg-card border-y border-card-border">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+              <div className="flex-1 space-y-6">
+                <div className="inline-block">
+                  <span className="px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold uppercase tracking-wide">
+                    Portfólio
+                  </span>
+                </div>
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+                  Projetos que Transformam Marcas
+                </h2>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Veja alguns dos trabalhos que realizamos para grandes empresas e negócios locais. 
+                  Cada projeto é executado com atenção aos detalhes e compromisso com a excelência.
+                </p>
+                <div className="pt-4">
+                  <Button 
+                    size="lg"
+                    onClick={() => setLocation('/portfolio')}
+                    className="text-base px-8 py-6 h-auto"
+                    data-testid="button-view-portfolio"
+                  >
+                    Ver Portfolio Completo
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex-1 grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="aspect-square rounded-lg overflow-hidden shadow-lg">
+                    <img src={vinylImage} alt="Projeto 1" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  </div>
+                  <div className="aspect-square rounded-lg overflow-hidden shadow-lg">
+                    <img src={stickerImage} alt="Projeto 2" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  </div>
+                </div>
+                <div className="space-y-4 pt-8">
+                  <div className="aspect-square rounded-lg overflow-hidden shadow-lg">
+                    <img src={lonaImage} alt="Projeto 3" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  </div>
+                  <div className="aspect-square rounded-lg overflow-hidden shadow-lg">
+                    <img src={vinylImage} alt="Projeto 4" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

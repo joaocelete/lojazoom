@@ -26,12 +26,21 @@ export default function Header({ cartItemCount = 0, onCartClick, onLoginClick }:
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-3" data-testid="link-home">
+          <a href="/" className="flex items-center gap-3" data-testid="link-home">
             <div className="text-2xl font-bold tracking-tight">
               <span className="text-primary">Print</span>
               <span className="text-background">Brasil</span>
             </div>
-          </div>
+          </a>
+
+          <nav className="hidden lg:flex items-center gap-6 ml-8">
+            <a href="/" className="text-background hover:text-primary transition-colors font-medium">
+              Início
+            </a>
+            <a href="/portfolio" className="text-background hover:text-primary transition-colors font-medium" data-testid="link-portfolio">
+              Portfolio
+            </a>
+          </nav>
 
           <div className="hidden md:flex flex-1 max-w-2xl mx-8">
             <div className="relative w-full">
