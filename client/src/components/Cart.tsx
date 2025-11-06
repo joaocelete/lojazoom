@@ -19,8 +19,6 @@ export default function Cart({ isOpen, onClose }: CartProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  if (!isOpen) return null;
-
   const shipping = 45.00;
   const total = subtotal + shipping;
 
@@ -85,6 +83,8 @@ export default function Cart({ isOpen, onClose }: CartProps) {
     }
     checkoutMutation.mutate();
   };
+
+  if (!isOpen) return null;
 
   return (
     <>

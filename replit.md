@@ -127,8 +127,7 @@ order_items
 
 ### Orders
 - `POST /api/orders` - Criar pedido (autenticado)
-- `GET /api/orders` - Listar pedidos do usuário (autenticado)
-- `GET /api/orders/all` - Listar todos os pedidos (admin only)
+- `GET /api/orders` - Listar pedidos (admin: todos os pedidos | customer: apenas seus pedidos)
 - `PATCH /api/orders/:id/status` - Atualizar status (admin only)
 
 ## Variáveis de Ambiente
@@ -181,19 +180,23 @@ npm run seed
 - [x] Cálculo de preço por m² (área × price_m²)
 - [x] Validação server-side de totais (anti-tampering)
 - [x] Proteção de rotas baseada em roles
-- [x] Seed com admin + 6 produtos de exemplo
+- [x] Seed com admin + cliente de teste + 6 produtos de exemplo
+- [x] Painel admin - visualização de pedidos
+- [x] Sistema de carrinho de compras funcional
+- [x] Testes E2E completos (login, carrinho, checkout, admin)
 
 ### Pendente 🚧
 - [ ] Integração Mercado Pago (Pix, cartão, boleto)
 - [ ] Cálculo automático de frete (Super Frete / Correios)
 - [ ] Input de endereço real no checkout
 - [ ] Seleção de método de pagamento no checkout
-- [ ] Painel admin completo (gerenciar pedidos/usuários)
+- [ ] Painel admin - gerenciar usuários
+- [ ] Painel admin - atualizar status de pedidos
 - [ ] Upload de imagens de produtos
 - [ ] Rate limiting
 - [ ] Helmet.js para security headers
-- [ ] Testes E2E
 - [ ] Footer com selos de segurança brasileiros
+- [ ] Histórico de pedidos para clientes (/orders)
 
 ## Notas Importantes
 
