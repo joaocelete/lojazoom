@@ -9,17 +9,21 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import Cart from "@/components/Cart";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const { addItem } = useCart();
+  const { addItem, totalItems } = useCart();
   const { toast } = useToast();
 
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
   const [artOption, setArtOption] = useState<"upload" | "create">("upload");
   const [artFile, setArtFile] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const { data, isLoading } = useQuery<{product: Product}>({
     queryKey: [`/api/products/${id}`],
@@ -102,30 +106,55 @@ export default function ProductDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Carregando produto...</div>
+      <div className="min-h-screen flex flex-col">
+        <Header 
+          cartItemCount={totalItems}
+          onCartClick={() => setIsCartOpen(true)}
+          onLoginClick={() => setLocation("/login")}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Carregando produto...</div>
+        </div>
+        <Footer />
+        <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-lg text-muted-foreground">Produto não encontrado</p>
-          <Button onClick={() => setLocation("/")} data-testid="button-back-home">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para a loja
-          </Button>
+      <div className="min-h-screen flex flex-col">
+        <Header 
+          cartItemCount={totalItems}
+          onCartClick={() => setIsCartOpen(true)}
+          onLoginClick={() => setLocation("/login")}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <p className="text-lg text-muted-foreground">Produto não encontrado</p>
+            <Button onClick={() => setLocation("/")} data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar para a loja
+            </Button>
+          </div>
         </div>
+        <Footer />
+        <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-8">
-        <Button
+    <div className="min-h-screen flex flex-col">
+      <Header 
+        cartItemCount={totalItems}
+        onCartClick={() => setIsCartOpen(true)}
+        onLoginClick={() => setLocation("/login")}
+      />
+
+      <main className="flex-1 bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto px-4 py-8">
+          <Button
           variant="ghost"
           onClick={() => setLocation("/")}
           className="mb-6"
@@ -290,7 +319,11 @@ export default function ProductDetail() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
+
+      <Footer />
+      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }
