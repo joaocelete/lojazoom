@@ -112,8 +112,6 @@ export default function Home() {
         
         <TrustBadges />
 
-        <ClientLogos />
-
         <section id="products" className="py-20 lg:py-28 bg-background">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="text-center mb-16 space-y-4">
@@ -142,6 +140,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <ClientLogos />
 
         <section className="py-20 lg:py-28 bg-card border-y border-card-border">
           <div className="container mx-auto px-4 lg:px-8">
