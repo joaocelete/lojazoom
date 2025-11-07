@@ -24,6 +24,7 @@ export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  category: text("category").notNull().default("banner"),
   pricePerM2: decimal("price_per_m2", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("image_url"),
   active: boolean("active").notNull().default(true),

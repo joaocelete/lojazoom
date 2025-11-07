@@ -7,15 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Upload } from "lucide-react";
 
+import type { Product } from "@shared/schema";
+
 interface ProductFormData {
   name: string;
   description: string;
+  category: string;
   pricePerM2: string;
+  imageUrl?: string;
   active: boolean;
 }
 
 interface AdminProductFormProps {
-  product?: ProductFormData & { id?: number };
+  product?: Product | null;
   onSave?: (data: ProductFormData) => void;
   onCancel?: () => void;
 }
@@ -24,7 +28,9 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
   const [formData, setFormData] = useState<ProductFormData>({
     name: product?.name || "",
     description: product?.description || "",
+    category: product?.category || "banner",
     pricePerM2: product?.pricePerM2 || "",
+    imageUrl: product?.imageUrl || "",
     active: product?.active ?? true
   });
 
@@ -66,6 +72,18 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
               rows={4}
               required
               data-testid="input-product-description"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoria</Label>
+            <Input
+              id="category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              placeholder="Ex: banner, adesivo, lona"
+              required
+              data-testid="input-product-category"
             />
           </div>
 

@@ -7,6 +7,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUserRole(id: string, role: 'admin' | 'customer'): Promise<User | undefined>;
   
   // Products
   getAllProducts(activeOnly?: boolean): Promise<Product[]>;
@@ -25,6 +27,16 @@ export interface IStorage {
   // Order Items
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   getOrderItems(orderId: string): Promise<OrderItem[]>;
+  
+  // Dashboard Stats
+  getDashboardStats(): Promise<{
+    totalRevenue: number;
+    totalOrders: number;
+    totalCustomers: number;
+    totalProducts: number;
+    recentOrders: Order[];
+    ordersByStatus: Record<string, number>;
+  }>;
 }
 
 export class DbStorage implements IStorage {
@@ -41,6 +53,15 @@ export class DbStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async updateUserRole(id: string, role: 'admin' | 'customer'): Promise<User | undefined> {
+    const result = await db.update(users).set({ role }).where(eq(users.id, id)).returning();
     return result[0];
   }
 
@@ -104,6 +125,39 @@ export class DbStorage implements IStorage {
 
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
     return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  }
+
+  async getDashboardStats(): Promise<{
+    totalRevenue: number;
+    totalOrders: number;
+    totalCustomers: number;
+    totalProducts: number;
+    recentOrders: Order[];
+    ordersByStatus: Record<string, number>;
+  }> {
+    const allOrders = await db.select().from(orders);
+    const allUsers = await db.select().from(users).where(eq(users.role, 'customer'));
+    const allProducts = await db.select().from(products);
+    
+    const totalRevenue = allOrders.reduce((sum, order) => {
+      return sum + parseFloat(order.total || '0');
+    }, 0);
+
+    const ordersByStatus = allOrders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const recentOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(5);
+
+    return {
+      totalRevenue,
+      totalOrders: allOrders.length,
+      totalCustomers: allUsers.length,
+      totalProducts: allProducts.length,
+      recentOrders,
+      ordersByStatus,
+    };
   }
 }
 

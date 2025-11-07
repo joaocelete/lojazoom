@@ -316,6 +316,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Management Routes (Admin only)
+  app.get("/api/users", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const usersWithoutPasswords = allUsers.map(({ password: _, ...user }) => user);
+      res.json({ users: usersWithoutPasswords });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.patch("/api/users/:id/role", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { role } = req.body;
+      if (!role || !['admin', 'customer'].includes(role)) {
+        return res.status(400).json({ message: "Role inválido. Use 'admin' ou 'customer'" });
+      }
+
+      const user = await storage.updateUserRole(req.params.id, role);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar role do usuário" });
+    }
+  });
+
+  // Dashboard Stats (Admin only)
+  app.get("/api/admin/dashboard", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar estatísticas" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
