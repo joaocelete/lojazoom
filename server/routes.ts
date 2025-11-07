@@ -207,9 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const calculatedShipping = 45.00;
-      const calculatedTotal = calculatedSubtotal + calculatedArtFee + calculatedShipping;
-
+      // Validar valores enviados pelo cliente
       const clientSubtotalNum = parseFloat(clientSubtotal);
       const clientArtFeeNum = parseFloat(clientArtFee || "0");
       const clientShippingNum = parseFloat(clientShipping);
@@ -220,25 +218,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valores inválidos enviados" });
       }
 
+      // Validar se o frete está dentro das opções válidas (PAC ou SEDEX)
+      const validShippingOptions = [45.00, 65.00]; // PAC e SEDEX
+      if (!validShippingOptions.includes(clientShippingNum)) {
+        return res.status(400).json({ 
+          message: "Opção de frete inválida. Escolha PAC (R$ 45,00) ou SEDEX (R$ 65,00)" 
+        });
+      }
+
+      // Usar o shipping selecionado pelo cliente
+      const calculatedTotal = calculatedSubtotal + calculatedArtFee + clientShippingNum;
+
       console.log("Order validation:", {
         calculatedSubtotal,
         clientSubtotalNum,
         calculatedArtFee,
         clientArtFeeNum,
-        calculatedShipping,
-        clientShippingNum,
+        clientShipping: clientShippingNum,
         calculatedTotal,
         clientTotalNum
       });
 
+      // Validar subtotal, taxa de arte e total
       if (Math.abs(calculatedSubtotal - clientSubtotalNum) > 0.01 ||
           Math.abs(calculatedArtFee - clientArtFeeNum) > 0.01 ||
-          Math.abs(calculatedShipping - clientShippingNum) > 0.01 ||
           Math.abs(calculatedTotal - clientTotalNum) > 0.01) {
         console.error("Order validation failed", {
           subtotalDiff: Math.abs(calculatedSubtotal - clientSubtotalNum),
           artFeeDiff: Math.abs(calculatedArtFee - clientArtFeeNum),
-          shippingDiff: Math.abs(calculatedShipping - clientShippingNum),
           totalDiff: Math.abs(calculatedTotal - clientTotalNum)
         });
         return res.status(400).json({ message: "Valores calculados não conferem. Por favor, recarregue o carrinho." });
@@ -248,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
         status: "pending",
         subtotal: calculatedSubtotal.toString(),
-        shipping: calculatedShipping.toString(),
+        shipping: clientShippingNum.toString(),
         total: calculatedTotal.toString(),
         shippingAddress,
         paymentMethod,
