@@ -218,11 +218,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valores inválidos enviados" });
       }
 
-      // Validar se o frete está dentro das opções válidas (PAC ou SEDEX)
-      const validShippingOptions = [45.00, 65.00]; // PAC e SEDEX
-      if (!validShippingOptions.includes(clientShippingNum)) {
+      // Validar se o frete está dentro de um range razoável (entre R$ 10 e R$ 200)
+      // SuperFrete pode retornar valores variados baseados em CEP e dimensões
+      if (clientShippingNum < 10 || clientShippingNum > 200) {
         return res.status(400).json({ 
-          message: "Opção de frete inválida. Escolha PAC (R$ 45,00) ou SEDEX (R$ 65,00)" 
+          message: "Valor de frete inválido. Deve estar entre R$ 10,00 e R$ 200,00" 
         });
       }
 
@@ -672,63 +672,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const error = await response.json();
         console.error("Erro SuperFrete:", JSON.stringify(error, null, 2));
         
-        // Fallback: usar opções fixas de frete se SuperFrete falhar
-        console.log("Usando opções de frete fallback");
+        // Fallback inteligente: calcular preço baseado na distância estimada
+        console.log("Usando opções de frete fallback com preços estimados");
+        
+        // Estimar distância baseada nos 2 primeiros dígitos do CEP
+        const destPrefix = parseInt(destinationCEP.substring(0, 2));
+        const originPrefix = 1; // São Paulo (01xxx-xxx)
+        
+        // Calcular diferença de região (quanto maior, mais longe)
+        const regionDistance = Math.abs(destPrefix - originPrefix);
+        
+        // Calcular peso volumétrico
+        const volumetricWeight = (pkg.height * pkg.width * pkg.length) / 6000;
+        const chargeableWeight = Math.max(pkg.weight, volumetricWeight);
+        
+        // Preço base por kg
+        const basePacPrice = 15.00;
+        const baseSedexPrice = 25.00;
+        
+        // Adicional por distância (R$ 2 por diferença de região)
+        const distanceFee = regionDistance * 2;
+        
+        // Adicional por peso
+        const weightFeePac = chargeableWeight * 8;
+        const weightFeeSedex = chargeableWeight * 12;
+        
+        const pacPrice = basePacPrice + distanceFee + weightFeePac;
+        const sedexPrice = baseSedexPrice + distanceFee + weightFeeSedex;
+        
+        // Prazo baseado na distância
+        const pacDays = Math.min(15, 5 + Math.floor(regionDistance / 3));
+        const sedexDays = Math.min(7, 2 + Math.floor(regionDistance / 5));
+        
         return res.json({
           options: [
             {
               id: 1,
               name: "Correios",
               service: "PAC",
-              delivery_time: 10,
-              price: 45.00,
+              delivery_time: pacDays,
+              price: Math.round(pacPrice * 100) / 100,
               discount: 0,
-              final_price: 45.00
+              final_price: Math.round(pacPrice * 100) / 100
             },
             {
               id: 2,
               name: "Correios",
               service: "SEDEX",
-              delivery_time: 5,
-              price: 65.00,
+              delivery_time: sedexDays,
+              price: Math.round(sedexPrice * 100) / 100,
               discount: 0,
-              final_price: 65.00
+              final_price: Math.round(sedexPrice * 100) / 100
             }
           ],
           originCEP,
-          fallback: true
+          fallback: true,
+          fallbackReason: error.message || "SuperFrete indisponível"
         });
       }
 
       const data = await response.json();
       console.log("SuperFrete resposta:", JSON.stringify(data, null, 2));
       
-      // Se não retornou nenhum carrier, usar fallback
+      // Se não retornou nenhum carrier, usar fallback inteligente
       if (!data.carrier || data.carrier.length === 0) {
-        console.log("SuperFrete não retornou carriers, usando fallback");
+        console.log("SuperFrete não retornou carriers, usando fallback com preços estimados");
+        
+        // Estimar distância baseada nos 2 primeiros dígitos do CEP
+        const destPrefix = parseInt(destinationCEP.substring(0, 2));
+        const originPrefix = 1; // São Paulo (01xxx-xxx)
+        
+        // Calcular diferença de região
+        const regionDistance = Math.abs(destPrefix - originPrefix);
+        
+        // Calcular peso volumétrico
+        const volumetricWeight = (pkg.height * pkg.width * pkg.length) / 6000;
+        const chargeableWeight = Math.max(pkg.weight, volumetricWeight);
+        
+        // Preço base
+        const basePacPrice = 15.00;
+        const baseSedexPrice = 25.00;
+        
+        // Adicionais
+        const distanceFee = regionDistance * 2;
+        const weightFeePac = chargeableWeight * 8;
+        const weightFeeSedex = chargeableWeight * 12;
+        
+        const pacPrice = basePacPrice + distanceFee + weightFeePac;
+        const sedexPrice = baseSedexPrice + distanceFee + weightFeeSedex;
+        
+        // Prazo baseado na distância
+        const pacDays = Math.min(15, 5 + Math.floor(regionDistance / 3));
+        const sedexDays = Math.min(7, 2 + Math.floor(regionDistance / 5));
+        
         return res.json({
           options: [
             {
               id: 1,
               name: "Correios",
               service: "PAC",
-              delivery_time: 10,
-              price: 45.00,
+              delivery_time: pacDays,
+              price: Math.round(pacPrice * 100) / 100,
               discount: 0,
-              final_price: 45.00
+              final_price: Math.round(pacPrice * 100) / 100
             },
             {
               id: 2,
               name: "Correios",
               service: "SEDEX",
-              delivery_time: 5,
-              price: 65.00,
+              delivery_time: sedexDays,
+              price: Math.round(sedexPrice * 100) / 100,
               discount: 0,
-              final_price: 65.00
+              final_price: Math.round(sedexPrice * 100) / 100
             }
           ],
           originCEP,
-          fallback: true
+          fallback: true,
+          fallbackReason: "Nenhuma transportadora disponível"
         });
       }
       
