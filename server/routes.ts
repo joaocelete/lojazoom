@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie, authenticateToken, requireAdmin, type AuthRequest } from "./auth";
 import { insertUserSchema, insertProductSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 import { z } from "zod";
+import { MercadoPagoConfig, Payment, MerchantOrder } from "mercadopago";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cookieParser());
@@ -354,6 +355,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar estatísticas" });
     }
+  });
+
+  // Mercado Pago - Checkout Transparente
+  const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  if (!mpAccessToken) {
+    console.warn("⚠️  MERCADOPAGO_ACCESS_TOKEN não configurado. Pagamentos não funcionarão.");
+  }
+
+  const mpClient = new MercadoPagoConfig({
+    accessToken: mpAccessToken || "",
+    options: {
+      timeout: 5000,
+    },
+  });
+
+  const payment = new Payment(mpClient);
+
+  // Processar pagamento com cartão de crédito
+  app.post("/api/payments/process", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const {
+        token,
+        orderId,
+        transaction_amount,
+        installments,
+        payment_method_id,
+        payer,
+        description,
+      } = req.body;
+
+      if (!token || !orderId || !transaction_amount || !payment_method_id || !payer) {
+        return res.status(400).json({ message: "Dados de pagamento incompletos" });
+      }
+
+      // Verificar se a order pertence ao usuário
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Pedido não encontrado" });
+      }
+
+      if (order.userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
+      // Processar pagamento no Mercado Pago
+      const paymentData = {
+        token,
+        transaction_amount: Number(transaction_amount),
+        description: description || `Pedido #${orderId}`,
+        installments: Number(installments),
+        payment_method_id,
+        payer: {
+          email: payer.email,
+          identification: {
+            type: payer.identification.type,
+            number: payer.identification.number,
+          },
+        },
+        external_reference: orderId,
+        notification_url: `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/api/payments/webhook`,
+      };
+
+      const response = await payment.create({ body: paymentData });
+
+      // Atualizar status do pedido baseado na resposta
+      if (response.status === "approved") {
+        await storage.updateOrderStatus(orderId, "paid");
+      } else if (response.status === "rejected") {
+        await storage.updateOrderStatus(orderId, "cancelled");
+      }
+
+      res.json({
+        payment: response,
+        order: await storage.getOrder(orderId),
+      });
+    } catch (error: any) {
+      console.error("Erro ao processar pagamento:", error);
+      res.status(500).json({
+        message: "Erro ao processar pagamento",
+        error: error.message || "Erro desconhecido",
+      });
+    }
+  });
+
+  // Criar pagamento PIX
+  app.post("/api/payments/pix", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, payer } = req.body;
+
+      if (!orderId || !payer) {
+        return res.status(400).json({ message: "Dados de pagamento incompletos" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Pedido não encontrado" });
+      }
+
+      if (order.userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
+      const paymentData = {
+        transaction_amount: Number(order.total),
+        description: `Pedido #${orderId} - PrintBrasil`,
+        payment_method_id: "pix",
+        payer: {
+          email: payer.email,
+          identification: {
+            type: payer.identification.type,
+            number: payer.identification.number,
+          },
+        },
+        external_reference: orderId,
+        notification_url: `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/api/payments/webhook`,
+      };
+
+      const response = await payment.create({ body: paymentData });
+
+      res.json({
+        payment: response,
+        qr_code: response.point_of_interaction?.transaction_data?.qr_code,
+        qr_code_base64: response.point_of_interaction?.transaction_data?.qr_code_base64,
+        ticket_url: response.point_of_interaction?.transaction_data?.ticket_url,
+      });
+    } catch (error: any) {
+      console.error("Erro ao criar pagamento PIX:", error);
+      res.status(500).json({
+        message: "Erro ao criar pagamento PIX",
+        error: error.message || "Erro desconhecido",
+      });
+    }
+  });
+
+  // Webhook para notificações do Mercado Pago
+  app.post("/api/payments/webhook", async (req, res) => {
+    try {
+      const { type, data } = req.body;
+
+      console.log("Webhook recebido:", { type, data });
+
+      if (type === "payment") {
+        const paymentId = data.id;
+        const paymentInfo = await payment.get({ id: paymentId });
+
+        const orderId = paymentInfo.external_reference;
+        if (orderId) {
+          // Atualizar status do pedido baseado no status do pagamento
+          if (paymentInfo.status === "approved") {
+            await storage.updateOrderStatus(orderId, "paid");
+          } else if (paymentInfo.status === "rejected" || paymentInfo.status === "cancelled") {
+            await storage.updateOrderStatus(orderId, "cancelled");
+          }
+        }
+      }
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Erro no webhook:", error);
+      res.status(500).json({ error: "Erro ao processar webhook" });
+    }
+  });
+
+  // Obter public key do Mercado Pago
+  app.get("/api/payments/public-key", (req, res) => {
+    const publicKey = process.env.MERCADOPAGO_PUBLIC_KEY;
+    if (!publicKey) {
+      return res.status(500).json({ message: "Public key não configurada" });
+    }
+    res.json({ publicKey });
   });
 
   const httpServer = createServer(app);
