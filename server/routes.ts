@@ -610,12 +610,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const originCEP = "01310100"; // Av Paulista, São Paulo - SP
 
       // Dados padrão do pacote se não fornecido
+      // Dimensões para produto enrolado em tubo (banner/adesivo)
       const pkg = packageDetails || {
-        height: 5,   // cm
-        width: 30,   // cm
-        length: 40,  // cm
-        weight: 1.0  // kg
+        height: 10,   // cm - diâmetro do tubo
+        width: 10,    // cm - diâmetro do tubo
+        length: 60,   // cm - comprimento do tubo
+        weight: 0.5   // kg - peso médio
       };
+
+      console.log("Calculando frete:", { from: originCEP, to: destinationCEP, package: pkg });
 
       const response = await fetch("https://api.superfrete.com/api/v0/calculator", {
         method: "POST",
@@ -638,16 +641,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("Erro SuperFrete:", error);
-        return res.status(response.status).json({ 
-          message: "Erro ao calcular frete", 
-          error 
+        console.error("Erro SuperFrete:", JSON.stringify(error, null, 2));
+        
+        // Fallback: usar opções fixas de frete se SuperFrete falhar
+        console.log("Usando opções de frete fallback");
+        return res.json({
+          options: [
+            {
+              id: 1,
+              name: "Correios",
+              service: "PAC",
+              delivery_time: 10,
+              price: 45.00,
+              discount: 0,
+              final_price: 45.00
+            },
+            {
+              id: 2,
+              name: "Correios",
+              service: "SEDEX",
+              delivery_time: 5,
+              price: 65.00,
+              discount: 0,
+              final_price: 65.00
+            }
+          ],
+          originCEP,
+          fallback: true
         });
       }
 
       const data = await response.json();
+      console.log("SuperFrete resposta:", JSON.stringify(data, null, 2));
       
-      // Retornar opções de frete
+      // Se não retornou nenhum carrier, usar fallback
+      if (!data.carrier || data.carrier.length === 0) {
+        console.log("SuperFrete não retornou carriers, usando fallback");
+        return res.json({
+          options: [
+            {
+              id: 1,
+              name: "Correios",
+              service: "PAC",
+              delivery_time: 10,
+              price: 45.00,
+              discount: 0,
+              final_price: 45.00
+            },
+            {
+              id: 2,
+              name: "Correios",
+              service: "SEDEX",
+              delivery_time: 5,
+              price: 65.00,
+              discount: 0,
+              final_price: 65.00
+            }
+          ],
+          originCEP,
+          fallback: true
+        });
+      }
+      
+      // Retornar opções de frete do SuperFrete
       res.json({
         options: data.carrier || [],
         originCEP

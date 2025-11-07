@@ -95,10 +95,10 @@ export default function Checkout() {
         body: JSON.stringify({
           destinationCEP: cep,
           packageDetails: {
-            height: 5,
-            width: 30,
-            length: 40,
-            weight: 2.0
+            height: 10,   // cm - diâmetro do tubo
+            width: 10,    // cm - diâmetro do tubo  
+            length: 60,   // cm - comprimento do tubo
+            weight: 0.5   // kg - peso médio
           }
         }),
       });
