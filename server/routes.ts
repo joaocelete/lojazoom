@@ -599,14 +599,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ publicKey });
   });
 
-  // Calcular frete com SuperFrete
+  // Calcular frete com Melhor Envio
   app.post("/api/shipping/calculate", async (req, res) => {
     try {
       const { destinationCEP, packageDetails } = req.body;
-      const token = process.env.SUPERFRETE_TOKEN;
+      const token = process.env.MELHOR_ENVIO_TOKEN;
 
       if (!token) {
-        return res.status(500).json({ message: "Token do SuperFrete não configurado" });
+        return res.status(500).json({ message: "Token do Melhor Envio não configurado" });
       }
 
       if (!destinationCEP) {
@@ -618,22 +618,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Dados padrão do pacote se não fornecido
       // Dimensões para produto enrolado em tubo (banner/adesivo)
-      // IMPORTANTE: SuperFrete exige width >= 10cm, length >= 15cm, height >= 1cm
       const pkg = packageDetails || {
-        height: 10,   // cm - diâmetro do tubo (min: 1, max: 200)
-        width: 10,    // cm - diâmetro do tubo (min: 10, max: 200)
-        length: 60,   // cm - comprimento do tubo (min: 15, max: 200)
+        height: 10,   // cm - diâmetro do tubo
+        width: 10,    // cm - diâmetro do tubo
+        length: 60,   // cm - comprimento do tubo
         weight: 0.5   // kg - peso médio
       };
 
-      console.log("Calculando frete:", { from: originCEP, to: destinationCEP, package: pkg });
+      console.log("Calculando frete Melhor Envio:", { from: originCEP, to: destinationCEP, package: pkg });
 
       // Usar sandbox ou produção conforme o ambiente
-      const apiUrl = process.env.SUPERFRETE_ENV === 'production' 
-        ? "https://api.superfrete.com/api/v0/calculator"
-        : "https://sandbox.superfrete.com/api/v0/calculator";
+      const apiUrl = process.env.MELHOR_ENVIO_ENV === 'production' 
+        ? "https://www.melhorenvio.com.br/api/v2/me/shipment/calculate"
+        : "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate";
 
-      console.log("SuperFrete URL:", apiUrl);
+      console.log("Melhor Envio URL:", apiUrl);
 
       const requestBody = {
         from: {
@@ -655,22 +654,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
-      console.log("SuperFrete request body:", JSON.stringify(requestBody, null, 2));
+      console.log("Melhor Envio request body:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
-          "User-Agent": "Superfrete (integracao@printbrasil.com)",
           "Content-Type": "application/json",
           "Accept": "application/json",
+          "User-Agent": "PrintBrasil (integracao@printbrasil.com)"
         },
         body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("Erro SuperFrete:", JSON.stringify(error, null, 2));
+        console.error("Erro Melhor Envio:", JSON.stringify(error, null, 2));
         
         // Fallback inteligente: calcular preço baseado na distância estimada
         console.log("Usando opções de frete fallback com preços estimados");
@@ -727,16 +726,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ],
           originCEP,
           fallback: true,
-          fallbackReason: error.message || "SuperFrete indisponível"
+          fallbackReason: error.message || "Melhor Envio indisponível"
         });
       }
 
       const data = await response.json();
-      console.log("SuperFrete resposta:", JSON.stringify(data, null, 2));
+      console.log("Melhor Envio resposta:", JSON.stringify(data, null, 2));
       
-      // Se não retornou nenhum carrier, usar fallback inteligente
-      if (!data.carrier || data.carrier.length === 0) {
-        console.log("SuperFrete não retornou carriers, usando fallback com preços estimados");
+      // Se não retornou nenhuma opção, usar fallback inteligente
+      if (!data || data.length === 0) {
+        console.log("Melhor Envio não retornou opções, usando fallback com preços estimados");
         
         // Estimar distância baseada nos 2 primeiros dígitos do CEP
         const destPrefix = parseInt(destinationCEP.substring(0, 2));
@@ -792,9 +791,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Retornar opções de frete do SuperFrete
+      // Transformar resposta do Melhor Envio para o formato esperado
+      const options = data.map((item: any, index: number) => ({
+        id: item.id || index + 1,
+        name: item.company?.name || "Transportadora",
+        service: item.name || "Serviço",
+        delivery_time: item.custom_delivery_time || item.delivery_time || 0,
+        price: item.custom_price || item.price || 0,
+        discount: item.discount || 0,
+        final_price: item.custom_price || item.price || 0
+      }));
+
       res.json({
-        options: data.carrier || [],
+        options,
         originCEP
       });
 
