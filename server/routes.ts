@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Processar pagamento no Mercado Pago
-      const paymentData = {
+      const paymentData: any = {
         token,
         transaction_amount: Number(transaction_amount),
         description: description || `Pedido #${orderId}`,
@@ -414,8 +414,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         },
         external_reference: orderId,
-        notification_url: `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/api/payments/webhook`,
       };
+
+      // Adicionar notification_url apenas em produção com domínio válido
+      const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
+      if (replitDomain && replitDomain.includes('replit.app')) {
+        paymentData.notification_url = `${replitDomain}/api/payments/webhook`;
+      }
 
       const response = await payment.create({ body: paymentData });
 
@@ -457,7 +462,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
 
-      const paymentData = {
+      // Construir dados do pagamento
+      const paymentData: any = {
         transaction_amount: Number(order.total),
         description: `Pedido #${orderId} - PrintBrasil`,
         payment_method_id: "pix",
@@ -469,8 +475,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         },
         external_reference: orderId,
-        notification_url: `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/api/payments/webhook`,
       };
+
+      // Adicionar notification_url apenas em produção com domínio válido
+      const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
+      if (replitDomain && replitDomain.includes('replit.app')) {
+        paymentData.notification_url = `${replitDomain}/api/payments/webhook`;
+      }
 
       const response = await payment.create({ body: paymentData });
 
