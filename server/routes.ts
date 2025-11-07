@@ -500,6 +500,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Criar pagamento Boleto
+  app.post("/api/payments/boleto", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, payer } = req.body;
+
+      if (!orderId || !payer) {
+        return res.status(400).json({ message: "Dados de pagamento incompletos" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Pedido não encontrado" });
+      }
+
+      if (order.userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
+      // Construir dados do pagamento
+      const paymentData: any = {
+        transaction_amount: Number(order.total),
+        description: `Pedido #${orderId} - PrintBrasil`,
+        payment_method_id: "bolbradesco", // Boleto Bradesco
+        payer: {
+          email: payer.email,
+          identification: {
+            type: payer.identification.type,
+            number: payer.identification.number,
+          },
+        },
+        external_reference: orderId,
+      };
+
+      // Adicionar notification_url apenas em produção com domínio válido
+      const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
+      if (replitDomain && replitDomain.includes('replit.app')) {
+        paymentData.notification_url = `${replitDomain}/api/payments/webhook`;
+      }
+
+      const response = await payment.create({ body: paymentData });
+
+      res.json({
+        payment: response,
+        ticket_url: response.transaction_details?.external_resource_url,
+      });
+    } catch (error: any) {
+      console.error("Erro ao criar pagamento Boleto:", error);
+      res.status(500).json({
+        message: "Erro ao criar pagamento Boleto",
+        error: error.message || "Erro desconhecido",
+      });
+    }
+  });
+
   // Webhook para notificações do Mercado Pago
   app.post("/api/payments/webhook", async (req, res) => {
     try {

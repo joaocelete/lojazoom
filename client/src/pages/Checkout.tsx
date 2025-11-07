@@ -98,73 +98,94 @@ export default function Checkout() {
 
   useEffect(() => {
     if (mp && paymentMethod === "card" && !cardForm) {
-      initializeCardForm();
+      // Aguardar DOM estar pronto antes de inicializar
+      setTimeout(() => {
+        initializeCardForm();
+      }, 100);
     }
   }, [mp, paymentMethod]);
 
   const initializeCardForm = async () => {
     if (!mp) return;
 
-    const form = mp.cardForm({
-      amount: String(total),
-      iframe: true,
-      form: {
-        id: "form-checkout",
-        cardNumber: {
-          id: "form-checkout__cardNumber",
-          placeholder: "Número do cartão",
-        },
-        expirationDate: {
-          id: "form-checkout__expirationDate",
-          placeholder: "MM/AA",
-        },
-        securityCode: {
-          id: "form-checkout__securityCode",
-          placeholder: "CVV",
-        },
-        cardholderName: {
-          id: "form-checkout__cardholderName",
-          placeholder: "Nome impresso no cartão",
-        },
-        issuer: {
-          id: "form-checkout__issuer",
-          placeholder: "Banco emissor",
-        },
-        installments: {
-          id: "form-checkout__installments",
-          placeholder: "Parcelas",
-        },
-        identificationType: {
-          id: "form-checkout__identificationType",
-        },
-        identificationNumber: {
-          id: "form-checkout__identificationNumber",
-          placeholder: "CPF",
-        },
-        cardholderEmail: {
-          id: "form-checkout__cardholderEmail",
-          placeholder: "E-mail",
-        },
-      },
-      callbacks: {
-        onFormMounted: (error: any) => {
-          if (error) {
-            console.error("Erro ao montar formulário:", error);
-            toast({
-              title: "Erro",
-              description: "Não foi possível carregar formulário de cartão",
-              variant: "destructive",
-            });
-          }
-        },
-        onSubmit: async (event: any) => {
-          event.preventDefault();
-          await handleCardPayment();
-        },
-      },
-    });
+    // Verificar se elementos DOM existem
+    const formElement = document.getElementById("form-checkout");
+    if (!formElement) {
+      console.error("Elemento form-checkout não encontrado");
+      return;
+    }
 
-    setCardForm(form);
+    try {
+      const form = mp.cardForm({
+        amount: String(total),
+        iframe: true,
+        form: {
+          id: "form-checkout",
+          cardNumber: {
+            id: "form-checkout__cardNumber",
+            placeholder: "Número do cartão",
+          },
+          expirationDate: {
+            id: "form-checkout__expirationDate",
+            placeholder: "MM/AA",
+          },
+          securityCode: {
+            id: "form-checkout__securityCode",
+            placeholder: "CVV",
+          },
+          cardholderName: {
+            id: "form-checkout__cardholderName",
+            placeholder: "Nome impresso no cartão",
+          },
+          issuer: {
+            id: "form-checkout__issuer",
+            placeholder: "Banco emissor",
+          },
+          installments: {
+            id: "form-checkout__installments",
+            placeholder: "Parcelas",
+          },
+          identificationType: {
+            id: "form-checkout__identificationType",
+          },
+          identificationNumber: {
+            id: "form-checkout__identificationNumber",
+            placeholder: "CPF",
+          },
+          cardholderEmail: {
+            id: "form-checkout__cardholderEmail",
+            placeholder: "E-mail",
+          },
+        },
+        callbacks: {
+          onFormMounted: (error: any) => {
+            if (error) {
+              console.error("Erro ao montar formulário:", error);
+              toast({
+                title: "Erro",
+                description: "Não foi possível carregar formulário de cartão",
+                variant: "destructive",
+              });
+            } else {
+              console.log("Formulário de cartão montado com sucesso");
+            }
+          },
+          onSubmit: async (event: any) => {
+            event.preventDefault();
+            await handleCardPayment();
+          },
+        },
+      });
+
+      setCardForm(form);
+    } catch (error) {
+      console.error("Erro ao inicializar cardForm:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao configurar pagamento com cartão",
+        variant: "destructive",
+      });
+    }
   };
 
   const createOrder = async () => {
@@ -310,6 +331,60 @@ export default function Checkout() {
       console.error("Erro ao gerar PIX:", error);
       toast({
         title: "Erro ao gerar PIX",
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleBoletoPayment = async () => {
+    setLoading(true);
+
+    try {
+      const orderIdCreated = await createOrder();
+      setOrderId(orderIdCreated);
+
+      const response = await fetch("/api/payments/boleto", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId: orderIdCreated,
+          payer: {
+            email: user?.email,
+            identification: {
+              type: "CPF",
+              number: cpf.replace(/\D/g, ""),
+            },
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.ticket_url) {
+        toast({
+          title: "Boleto gerado!",
+          description: "Abrindo boleto em nova aba...",
+        });
+        
+        // Abrir boleto em nova aba
+        window.open(result.ticket_url, "_blank");
+        
+        // Limpar carrinho e redirecionar
+        setTimeout(() => {
+          clearCart();
+          queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+          setLocation("/");
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error("Erro ao gerar boleto:", error);
+      toast({
+        title: "Erro ao gerar boleto",
         description: error.message || "Tente novamente",
         variant: "destructive",
       });
@@ -578,7 +653,7 @@ export default function Checkout() {
                     <CreditCard className="mr-2 h-4 w-4" />
                     Cartão
                   </TabsTrigger>
-                  <TabsTrigger value="boleto" data-testid="tab-boleto" disabled>
+                  <TabsTrigger value="boleto" data-testid="tab-boleto">
                     <FileText className="mr-2 h-4 w-4" />
                     Boleto
                   </TabsTrigger>
@@ -671,10 +746,38 @@ export default function Checkout() {
                   </form>
                 </TabsContent>
 
-                <TabsContent value="boleto" className="mt-4">
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Pagamento via boleto em breve...
-                  </p>
+                <TabsContent value="boleto" className="space-y-4 mt-4">
+                  <div>
+                    <Label htmlFor="cpf-boleto">CPF</Label>
+                    <Input
+                      id="cpf-boleto"
+                      value={cpf}
+                      onChange={(e) => setCpf(formatCPF(e.target.value))}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      required
+                      data-testid="input-cpf-boleto"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleBoletoPayment}
+                    disabled={!validateAddress() || !cpf || loading}
+                    className="w-full"
+                    data-testid="button-pay-boleto"
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Gerar Boleto
+                  </Button>
+
+                  {pixQrCode && (
+                    <div className="mt-4 p-4 bg-muted rounded-md">
+                      <p className="text-sm font-semibold mb-2">Boleto gerado com sucesso!</p>
+                      <p className="text-sm text-muted-foreground">
+                        Use o link abaixo para visualizar e pagar seu boleto.
+                      </p>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
