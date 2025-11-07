@@ -49,6 +49,7 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 - **Database:** PostgreSQL (managed by Neon).
 - **ORM:** Drizzle ORM.
 - **Payment Gateway:** Mercado Pago Checkout Bricks (`@mercadopago/sdk-react`). Uses Payment Brick component for unified payment experience with PIX, Credit/Debit Cards, and Boleto. Provides professional UI, automatic validation, and simplified PCI compliance.
+- **Shipping Calculator:** SuperFrete API integration with automatic fallback system. Calculates shipping based on destination CEP and package dimensions (10x10x60cm tube for rolled banners/vinyl). When SuperFrete API fails or returns no results, uses fixed fallback options (PAC R$ 45,00 / SEDEX R$ 65,00) to ensure checkout always works.
 - **Authentication:** JWT (JSON Web Tokens) and bcrypt.
 - **Validation:** Zod.
 - **UI Libraries:** React, Wouter, TanStack Query, Tailwind CSS, Shadcn/ui.
@@ -76,3 +77,41 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
   onSubmit={handlePayment}
 />
 ```
+
+### Shipping Integration with Fallback System
+**Integration:** SuperFrete API (`SUPERFRETE_TOKEN` environment variable)  
+**Endpoint:** `POST /api/shipping/calculate`
+
+**Package Specifications:**
+```javascript
+{
+  height: 10,   // cm - tube diameter
+  width: 10,    // cm - tube diameter
+  length: 60,   // cm - tube length
+  weight: 0.5   // kg - average weight for rolled banners/vinyl
+}
+```
+
+**Fallback System:**
+When SuperFrete API fails (HTTP error, empty results, or timeout):
+```javascript
+[
+  { name: "Correios", service: "PAC", delivery_time: 10, final_price: 45.00 },
+  { name: "Correios", service: "SEDEX", delivery_time: 5, final_price: 65.00 }
+]
+```
+
+**Benefits:**
+- ✅ **Automatic Calculation**: Real-time shipping quotes from SuperFrete
+- ✅ **Multiple Options**: PAC, SEDEX, and other carriers when available
+- ✅ **Reliable Fallback**: Checkout never breaks due to shipping API issues
+- ✅ **User Experience**: Auto-triggers on CEP input (8 digits), instant feedback
+- ✅ **Database Tracking**: Stores carrier, service, delivery time, and price in orders table
+
+**UI Flow:**
+1. User enters 8-digit CEP → Auto-triggers calculation
+2. Shows loading state: "Calculando opções de frete..."
+3. Displays shipping options as selectable radio cards
+4. First option auto-selected
+5. Sidebar updates with shipping cost
+6. Payment Brick unlocks when address + shipping complete
