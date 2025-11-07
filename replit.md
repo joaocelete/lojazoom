@@ -49,7 +49,7 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 - **Database:** PostgreSQL (managed by Neon).
 - **ORM:** Drizzle ORM.
 - **Payment Gateway:** Mercado Pago Checkout Bricks (`@mercadopago/sdk-react`). Uses Payment Brick component for unified payment experience with PIX, Credit/Debit Cards, and Boleto. Provides professional UI, automatic validation, and simplified PCI compliance.
-- **Shipping Calculator:** SuperFrete API integration with automatic fallback system. Calculates shipping based on destination CEP and package dimensions (10x10x60cm tube for rolled banners/vinyl). When SuperFrete API fails or returns no results, uses fixed fallback options (PAC R$ 45,00 / SEDEX R$ 65,00) to ensure checkout always works.
+- **Shipping Calculator:** Melhor Envio API integration with intelligent fallback system. Calculates shipping based on destination CEP and package dimensions (10x10x60cm tube for rolled banners/vinyl). When Melhor Envio API fails or returns no results, uses intelligent distance-based fallback pricing to ensure checkout always works.
 - **Authentication:** JWT (JSON Web Tokens) and bcrypt.
 - **Validation:** Zod.
 - **UI Libraries:** React, Wouter, TanStack Query, Tailwind CSS, Shadcn/ui.
@@ -78,8 +78,8 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 />
 ```
 
-### Shipping Integration with Fallback System
-**Integration:** SuperFrete API (`SUPERFRETE_TOKEN` environment variable)  
+### Shipping Integration with Intelligent Fallback
+**Integration:** Melhor Envio API (`MELHOR_ENVIO_TOKEN` environment variable)  
 **Endpoint:** `POST /api/shipping/calculate`
 
 **Package Specifications:**
@@ -92,26 +92,39 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 }
 ```
 
-**Fallback System:**
-When SuperFrete API fails (HTTP error, empty results, or timeout):
-```javascript
-[
-  { name: "Correios", service: "PAC", delivery_time: 10, final_price: 45.00 },
-  { name: "Correios", service: "SEDEX", delivery_time: 5, final_price: 65.00 }
-]
-```
+**Intelligent Fallback System:**
+When Melhor Envio API fails or returns empty results, the system calculates realistic shipping prices based on:
+- **CEP Distance Analysis**: Uses first 2 digits to estimate regional distance
+- **Volumetric Weight**: Calculates `(height × width × length) / 6000`
+- **Dynamic Pricing**: `Base price + Distance fee (R$2/region) + Weight fee`
+- **Delivery Time**: Adjusts based on distance (PAC: 5-15 days, SEDEX: 2-7 days)
+
+**Example Fallback Prices:**
+- São Paulo (CEP 01xxx): PAC R$23, SEDEX R$37
+- Rio de Janeiro (CEP 20xxx): PAC R$61, SEDEX R$75
+- Curitiba (CEP 80xxx): PAC R$181, SEDEX R$195
+- Manaus (CEP 69xxx): PAC R$159, SEDEX R$173
 
 **Benefits:**
-- ✅ **Automatic Calculation**: Real-time shipping quotes from SuperFrete
-- ✅ **Multiple Options**: PAC, SEDEX, and other carriers when available
-- ✅ **Reliable Fallback**: Checkout never breaks due to shipping API issues
+- ✅ **Real-Time Quotes**: Live shipping calculations from Melhor Envio API
+- ✅ **Multiple Carriers**: Correios, JadLog, and other carriers via Melhor Envio
+- ✅ **Intelligent Fallback**: Distance-based pricing ensures realistic values
+- ✅ **Never Breaks**: Checkout always works, even if API is down
 - ✅ **User Experience**: Auto-triggers on CEP input (8 digits), instant feedback
 - ✅ **Database Tracking**: Stores carrier, service, delivery time, and price in orders table
+
+**API Authentication:**
+Melhor Envio uses OAuth 2.0. To get a token:
+1. Create account at https://sandbox.melhorenvio.com.br (sandbox) or https://www.melhorenvio.com.br (production)
+2. Create an application in the dashboard to get `client_id` and `client_secret`
+3. Complete OAuth flow to obtain Bearer token
+4. Add token to environment variable `MELHOR_ENVIO_TOKEN`
+5. Set `MELHOR_ENVIO_ENV=sandbox` for testing or `MELHOR_ENVIO_ENV=production` for live use
 
 **UI Flow:**
 1. User enters 8-digit CEP → Auto-triggers calculation
 2. Shows loading state: "Calculando opções de frete..."
-3. Displays shipping options as selectable radio cards
+3. Displays shipping options as selectable radio cards with carrier logos
 4. First option auto-selected
 5. Sidebar updates with shipping cost
 6. Payment Brick unlocks when address + shipping complete
