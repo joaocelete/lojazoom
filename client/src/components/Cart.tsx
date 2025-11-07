@@ -2,8 +2,6 @@ import { X, Trash2, ShoppingBag, Package, Upload, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCart } from "@/contexts/CartContext";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -22,60 +20,6 @@ export default function Cart({ isOpen, onClose }: CartProps) {
   const shipping = 45.00;
   const total = subtotal + artCreationFeeTotal + shipping;
 
-  const checkoutMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) {
-        throw new Error("Login necessário");
-      }
-
-      const orderItems = items.map(item => ({
-        productId: item.productId,
-        width: item.width.toString(),
-        height: item.height.toString(),
-        artOption: item.artOption,
-        artFile: item.artFile,
-        artCreationFee: item.artCreationFee.toString(),
-      }));
-
-      const res = await apiRequest("POST", "/api/orders", {
-        items: orderItems,
-        shippingAddress: "Endereço padrão",
-        paymentMethod: "pending",
-        subtotal: subtotal.toString(),
-        artCreationFee: artCreationFeeTotal.toString(),
-        shipping: shipping.toString(),
-        total: total.toString(),
-        status: "pending",
-      });
-
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Pedido criado com sucesso!",
-        description: "Você será redirecionado para o pagamento.",
-      });
-      clearCart();
-      onClose();
-    },
-    onError: (error: Error) => {
-      if (error.message.includes("401")) {
-        toast({
-          title: "Login necessário",
-          description: "Faça login para finalizar sua compra.",
-          variant: "destructive",
-        });
-        setLocation("/login");
-      } else {
-        toast({
-          title: "Erro ao criar pedido",
-          description: "Tente novamente mais tarde.",
-          variant: "destructive",
-        });
-      }
-    },
-  });
-
   const handleCheckout = () => {
     if (!user) {
       toast({
@@ -85,7 +29,18 @@ export default function Cart({ isOpen, onClose }: CartProps) {
       setLocation("/login");
       return;
     }
-    checkoutMutation.mutate();
+    
+    if (items.length === 0) {
+      toast({
+        title: "Carrinho vazio",
+        description: "Adicione produtos ao carrinho antes de finalizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onClose();
+    setLocation("/checkout");
   };
 
   if (!isOpen) return null;
@@ -218,10 +173,9 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                 className="w-full h-14 text-base font-bold shadow-lg" 
                 size="lg"
                 onClick={handleCheckout}
-                disabled={checkoutMutation.isPending}
                 data-testid="button-checkout"
               >
-                {checkoutMutation.isPending ? "Processando..." : "Finalizar Compra"}
+                Finalizar Compra
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
