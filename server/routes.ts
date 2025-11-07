@@ -618,32 +618,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Dados padrão do pacote se não fornecido
       // Dimensões para produto enrolado em tubo (banner/adesivo)
+      // IMPORTANTE: SuperFrete exige width >= 10cm, length >= 15cm, height >= 1cm
       const pkg = packageDetails || {
-        height: 10,   // cm - diâmetro do tubo
-        width: 10,    // cm - diâmetro do tubo
-        length: 60,   // cm - comprimento do tubo
+        height: 10,   // cm - diâmetro do tubo (min: 1, max: 200)
+        width: 10,    // cm - diâmetro do tubo (min: 10, max: 200)
+        length: 60,   // cm - comprimento do tubo (min: 15, max: 200)
         weight: 0.5   // kg - peso médio
       };
 
       console.log("Calculando frete:", { from: originCEP, to: destinationCEP, package: pkg });
 
-      const response = await fetch("https://api.superfrete.com/api/v0/calculator", {
+      // Usar sandbox ou produção conforme o ambiente
+      const apiUrl = process.env.SUPERFRETE_ENV === 'production' 
+        ? "https://api.superfrete.com/api/v0/calculator"
+        : "https://sandbox.superfrete.com/api/v0/calculator";
+
+      console.log("SuperFrete URL:", apiUrl);
+
+      const requestBody = {
+        from: {
+          postal_code: originCEP.replace(/\D/g, "")
+        },
+        to: {
+          postal_code: destinationCEP.replace(/\D/g, "")
+        },
+        package: {
+          height: Number(pkg.height),
+          width: Number(pkg.width),
+          length: Number(pkg.length),
+          weight: Number(pkg.weight)
+        },
+        options: {
+          insurance_value: 100,
+          receipt: false,
+          own_hand: false
+        }
+      };
+
+      console.log("SuperFrete request body:", JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
-          "User-Agent": "PrintBrasil (integracao@printbrasil.com)",
+          "User-Agent": "Superfrete (integracao@printbrasil.com)",
           "Content-Type": "application/json",
           "Accept": "application/json",
         },
-        body: JSON.stringify({
-          from: {
-            postal_code: originCEP.replace(/\D/g, "")
-          },
-          to: {
-            postal_code: destinationCEP.replace(/\D/g, "")
-          },
-          package: pkg
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
