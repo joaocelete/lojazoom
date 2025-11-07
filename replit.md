@@ -27,6 +27,7 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 - **Security:** Server-side validation of order totals to prevent manipulation. HttpOnly cookies prevent JavaScript access. CORS is configured.
 - **Database Schema:** Defined for `users`, `products`, `orders`, and `order_items`, including fields for IDs, emails, passwords, roles, product details, order statuses, and pricing.
 - **Price Calculation:** `area (m²) = width × height`, `subtotal = area (m²) × pricePerM2`. An optional art creation fee of R$ 35,00 is applied if selected, and a fixed shipping fee of R$ 45,00 (temporary). All values are stored as decimal strings.
+- **Payment Integration:** Uses Mercado Pago **Payment Brick** (`@mercadopago/sdk-react`) for unified payment experience. Single component handles PIX, Credit/Debit Cards, and Boleto with professional Mercado Pago UI, automatic validation, and PCI compliance simplification.
 
 ### Feature Specifications
 - **Product Management:** Full CRUD operations for products, including categorization, accessible by administrators.
@@ -34,8 +35,9 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 - **User Management:** Admin panel allows listing users, filtering by role, and updating user roles.
 - **Shopping Cart:** Functional shopping cart with persistence via `localStorage`.
 - **Admin Dashboard:** Comprehensive dashboard with metrics (revenue, orders, customers, products) and a graphical representation of order statuses.
-- **Checkout Process:** Integrated transparent checkout with address input, payment method selection (PIX, Credit Card, Boleto) via Mercado Pago.
+- **Checkout Process:** Modern checkout experience with shipping address collection and **Mercado Pago Payment Brick** integration. Payment Brick provides a unified, professional interface for all payment methods (PIX, Cards, Boleto) with built-in validation, security, and Mercado Pago branding that increases customer trust and conversion.
 - **Art Options:** Customers can choose to upload their own art files or request art creation (with an associated fee).
+- **Payment Processing:** Backend endpoints handle PIX QR code generation (`/api/payments/pix`), card payments (`/api/payments/process`), and boleto tickets (`/api/payments/boleto`). All payments are validated server-side and stored in the orders table.
 
 ### System Design Choices
 - **Monorepo Structure:** Divided into `client/` (React frontend), `server/` (Express backend), and `shared/` (shared schemas and utilities).
@@ -46,7 +48,31 @@ PrintBrasil is a comprehensive e-commerce platform for visual communication prod
 
 - **Database:** PostgreSQL (managed by Neon).
 - **ORM:** Drizzle ORM.
-- **Payment Gateway:** Mercado Pago for transparent checkout, including PIX, Credit Card, and Boleto payments.
+- **Payment Gateway:** Mercado Pago Checkout Bricks (`@mercadopago/sdk-react`). Uses Payment Brick component for unified payment experience with PIX, Credit/Debit Cards, and Boleto. Provides professional UI, automatic validation, and simplified PCI compliance.
 - **Authentication:** JWT (JSON Web Tokens) and bcrypt.
 - **Validation:** Zod.
 - **UI Libraries:** React, Wouter, TanStack Query, Tailwind CSS, Shadcn/ui.
+
+## Recent Architecture Changes (November 2025)
+
+### Payment Integration Migration
+**From:** Manual Mercado Pago SDK implementation with separate cardForm, custom tabs, and manual validation  
+**To:** Mercado Pago Payment Brick (`@mercadopago/sdk-react`)
+
+**Benefits:**
+- ✅ **Unified Interface**: Single component for all payment methods (PIX, Cards, Boleto)
+- ✅ **Professional UI**: Standard Mercado Pago design increases customer trust
+- ✅ **Code Reduction**: Eliminated ~400 lines of manual payment form code
+- ✅ **Automatic Updates**: Payment methods and security updates managed by Mercado Pago
+- ✅ **Better UX**: Pre-built validation, error handling, and user feedback
+- ✅ **PCI Compliance**: Simplified certification process with hosted payment fields
+- ✅ **Maintainability**: Less custom code to maintain and debug
+
+**Implementation:**
+```tsx
+<Payment
+  initialization={{ amount: total, payer: { email: user.email } }}
+  customization={{ paymentMethods: { creditCard: 'all', debitCard: 'all', ticket: 'all', bankTransfer: 'all' } }}
+  onSubmit={handlePayment}
+/>
+```
