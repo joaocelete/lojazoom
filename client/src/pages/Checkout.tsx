@@ -422,6 +422,11 @@ export default function Checkout() {
     return cpf;
   };
 
+  const isValidCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers.length === 11;
+  };
+
   if (pixQrCode) {
     return (
       <div className="container max-w-2xl mx-auto py-8 px-4">
@@ -675,7 +680,7 @@ export default function Checkout() {
 
                   <Button
                     onClick={handlePixPayment}
-                    disabled={!validateAddress() || !cpf || loading}
+                    disabled={!validateAddress() || !isValidCPF(cpf) || loading}
                     className="w-full"
                     data-testid="button-pay-pix"
                   >
@@ -762,7 +767,7 @@ export default function Checkout() {
 
                   <Button
                     onClick={handleBoletoPayment}
-                    disabled={!validateAddress() || !cpf || loading}
+                    disabled={!validateAddress() || !isValidCPF(cpf) || loading}
                     className="w-full"
                     data-testid="button-pay-boleto"
                   >
