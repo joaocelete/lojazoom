@@ -592,6 +592,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ publicKey });
   });
 
+  // Calcular frete com SuperFrete
+  app.post("/api/shipping/calculate", async (req, res) => {
+    try {
+      const { destinationCEP, packageDetails } = req.body;
+      const token = process.env.SUPERFRETE_TOKEN;
+
+      if (!token) {
+        return res.status(500).json({ message: "Token do SuperFrete não configurado" });
+      }
+
+      if (!destinationCEP) {
+        return res.status(400).json({ message: "CEP de destino é obrigatório" });
+      }
+
+      // CEP de origem (PrintBrasil - ajuste para seu CEP)
+      const originCEP = "01310100"; // Av Paulista, São Paulo - SP
+
+      // Dados padrão do pacote se não fornecido
+      const pkg = packageDetails || {
+        height: 5,   // cm
+        width: 30,   // cm
+        length: 40,  // cm
+        weight: 1.0  // kg
+      };
+
+      const response = await fetch("https://api.superfrete.com/api/v0/calculator", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "User-Agent": "PrintBrasil (integracao@printbrasil.com)",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          from: {
+            postal_code: originCEP.replace(/\D/g, "")
+          },
+          to: {
+            postal_code: destinationCEP.replace(/\D/g, "")
+          },
+          package: pkg
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Erro SuperFrete:", error);
+        return res.status(response.status).json({ 
+          message: "Erro ao calcular frete", 
+          error 
+        });
+      }
+
+      const data = await response.json();
+      
+      // Retornar opções de frete
+      res.json({
+        options: data.carrier || [],
+        originCEP
+      });
+
+    } catch (error) {
+      console.error("Erro ao calcular frete:", error);
+      res.status(500).json({ message: "Erro ao calcular frete" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

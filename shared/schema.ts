@@ -48,6 +48,9 @@ export const orders = pgTable("orders", {
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   shippingAddress: text("shipping_address"),
   paymentMethod: text("payment_method"),
+  shippingCarrier: text("shipping_carrier"),
+  shippingService: text("shipping_service"),
+  shippingDeliveryDays: integer("shipping_delivery_days"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
