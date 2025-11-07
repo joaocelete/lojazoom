@@ -2,24 +2,32 @@ import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Package, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Package, Loader2, CheckCircle2, Truck, CreditCard, MapPin } from "lucide-react";
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
+interface ShippingOption {
+  id: number;
+  name: string;
+  service: string;
+  delivery_time: number;
+  price: number;
+  discount: number;
+  final_price: number;
+}
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { items, subtotal, artCreationFeeTotal, clearCart } = useCart();
   const { toast } = useToast();
-  
-  const shipping = 45.00;
-  const total = subtotal + artCreationFeeTotal + shipping;
   
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
@@ -30,9 +38,16 @@ export default function Checkout() {
     state: "",
     zipCode: "",
   });
+  
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
   const [mpInitialized, setMpInitialized] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  const shipping = selectedShipping?.final_price || 0;
+  const total = subtotal + artCreationFeeTotal + shipping;
 
   useEffect(() => {
     if (!user) {
@@ -64,6 +79,68 @@ export default function Checkout() {
       });
   }, [user, items, setLocation, toast]);
 
+  const calculateShipping = async (cep: string) => {
+    if (cep.replace(/\D/g, "").length !== 8) {
+      return;
+    }
+
+    setLoadingShipping(true);
+    try {
+      const response = await fetch("/api/shipping/calculate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          destinationCEP: cep,
+          packageDetails: {
+            height: 5,
+            width: 30,
+            length: 40,
+            weight: 2.0
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao calcular frete");
+      }
+
+      const data = await response.json();
+      setShippingOptions(data.options || []);
+      
+      // Selecionar automaticamente a primeira opção (geralmente a mais barata)
+      if (data.options && data.options.length > 0) {
+        setSelectedShipping(data.options[0]);
+      }
+
+      toast({
+        title: "Frete calculado!",
+        description: `${data.options?.length || 0} opções disponíveis`,
+      });
+    } catch (error) {
+      console.error("Erro ao calcular frete:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível calcular o frete. Verifique o CEP.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
+
+  const handleZipCodeChange = (value: string) => {
+    setShippingAddress({ ...shippingAddress, zipCode: value });
+    
+    // Auto-calcular quando CEP tiver 8 dígitos
+    const cleanCEP = value.replace(/\D/g, "");
+    if (cleanCEP.length === 8) {
+      calculateShipping(value);
+    }
+  };
+
   const validateAddress = () => {
     return (
       shippingAddress.street &&
@@ -71,7 +148,8 @@ export default function Checkout() {
       shippingAddress.neighborhood &&
       shippingAddress.city &&
       shippingAddress.state &&
-      shippingAddress.zipCode
+      shippingAddress.zipCode &&
+      selectedShipping !== null
     );
   };
 
@@ -100,6 +178,9 @@ export default function Checkout() {
           artCreationFee: artCreationFeeTotal.toString(),
           shipping: shipping.toString(),
           total: total.toString(),
+          shippingCarrier: selectedShipping?.name,
+          shippingService: selectedShipping?.service,
+          shippingDeliveryDays: selectedShipping?.delivery_time,
         }),
       });
 
@@ -118,29 +199,26 @@ export default function Checkout() {
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     if (!validateAddress()) {
       toast({
-        title: "Endereço incompleto",
-        description: "Preencha todos os campos do endereço",
+        title: "Dados incompletos",
+        description: "Preencha o endereço e escolha um método de envio",
         variant: "destructive",
       });
       return new Promise((_, reject) => reject());
     }
 
     try {
-      // Criar pedido primeiro
       const orderIdCreated = await createOrder();
       setOrderId(orderIdCreated);
 
       console.log("Método de pagamento:", selectedPaymentMethod);
       console.log("Dados do formulário:", formData);
 
-      // Processar pagamento baseado no método
       let endpoint = "/api/payments/process";
       let requestBody = {
         ...formData,
         orderId: orderIdCreated,
       };
 
-      // Ajustar endpoint e dados baseado no método
       if (selectedPaymentMethod === "pix" || formData.payment_method_id === "pix") {
         endpoint = "/api/payments/pix";
         requestBody = {
@@ -170,7 +248,6 @@ export default function Checkout() {
         throw new Error(result.message || "Erro ao processar pagamento");
       }
 
-      // Tratamento especial para PIX (mostrar QR Code)
       if (result.qr_code) {
         toast({
           title: "PIX gerado!",
@@ -179,7 +256,6 @@ export default function Checkout() {
         return;
       }
 
-      // Tratamento especial para Boleto (abrir em nova aba)
       if (result.ticket_url) {
         toast({
           title: "Boleto gerado!",
@@ -195,7 +271,6 @@ export default function Checkout() {
         return;
       }
 
-      // Pagamento com cartão - verificar status
       if (result.payment) {
         const status = result.payment.status;
         
@@ -242,7 +317,6 @@ export default function Checkout() {
     });
   };
 
-  // Mostrar tela de sucesso
   if (paymentSuccess) {
     return (
       <div className="container max-w-2xl mx-auto py-8 px-4">
@@ -263,96 +337,47 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <div className="min-h-screen bg-background py-4 md:py-8">
+      <div className="container mx-auto px-4 max-w-7xl">
         <Button
           variant="ghost"
           onClick={() => setLocation("/")}
-          className="mb-6"
+          className="mb-4 md:mb-6"
           data-testid="button-back"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Coluna Esquerda - Resumo do Pedido */}
-          <div className="md:col-span-1">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6">Finalizar Pedido</h1>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Coluna Principal - Endereço e Pagamento */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* 1. Endereço de Entrega */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Resumo do Pedido
+                  <MapPin className="h-5 w-5" />
+                  Endereço de Entrega
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Produtos */}
-                <div className="space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.productName}</p>
-                        <p className="text-muted-foreground">
-                          {item.width}m × {item.height}m = {(item.width * item.height).toFixed(2)}m²
-                        </p>
-                        {item.artOption === "create" && (
-                          <p className="text-xs text-muted-foreground">+ Criação de arte</p>
-                        )}
-                      </div>
-                      <span className="font-semibold">R$ {item.total.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Separator />
-
-                {/* Totais */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span>R$ {subtotal.toFixed(2)}</span>
-                  </div>
-                  {artCreationFeeTotal > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Criação de arte:</span>
-                      <span>R$ {artCreationFeeTotal.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Frete:</span>
-                    <span>R$ {shipping.toFixed(2)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total:</span>
-                    <span className="text-primary">R$ {total.toFixed(2)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Coluna Direita - Endereço e Pagamento */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Endereço de Entrega */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Endereço de Entrega</CardTitle>
+                <CardDescription>Onde você quer receber seu pedido?</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="zipCode">CEP</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="zipCode">CEP *</Label>
                     <Input
                       id="zipCode"
                       value={shippingAddress.zipCode}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, zipCode: e.target.value })}
+                      onChange={(e) => handleZipCodeChange(e.target.value)}
                       placeholder="00000-000"
+                      maxLength={9}
                       data-testid="input-zipcode"
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="street">Rua</Label>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="street">Rua *</Label>
                     <Input
                       id="street"
                       value={shippingAddress.street}
@@ -362,7 +387,7 @@ export default function Checkout() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="number">Número</Label>
+                    <Label htmlFor="number">Número *</Label>
                     <Input
                       id="number"
                       value={shippingAddress.number}
@@ -382,7 +407,7 @@ export default function Checkout() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="neighborhood">Bairro</Label>
+                    <Label htmlFor="neighborhood">Bairro *</Label>
                     <Input
                       id="neighborhood"
                       value={shippingAddress.neighborhood}
@@ -392,7 +417,7 @@ export default function Checkout() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="city">Cidade</Label>
+                    <Label htmlFor="city">Cidade *</Label>
                     <Input
                       id="city"
                       value={shippingAddress.city}
@@ -401,8 +426,8 @@ export default function Checkout() {
                       data-testid="input-city"
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="state">Estado (UF)</Label>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="state">Estado (UF) *</Label>
                     <Input
                       id="state"
                       value={shippingAddress.state}
@@ -416,26 +441,110 @@ export default function Checkout() {
               </CardContent>
             </Card>
 
-            {/* Payment Brick do Mercado Pago */}
+            {/* 2. Método de Envio */}
             <Card>
               <CardHeader>
-                <CardTitle>Pagamento</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Escolha a forma de pagamento. Processamento seguro via Mercado Pago.
-                </p>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Método de Envio
+                </CardTitle>
+                <CardDescription>
+                  {loadingShipping ? "Calculando frete..." : "Escolha como deseja receber"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
+                {loadingShipping ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-3">Calculando opções de frete...</span>
+                  </div>
+                ) : shippingOptions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Truck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Preencha o CEP para calcular o frete</p>
+                  </div>
+                ) : (
+                  <RadioGroup
+                    value={selectedShipping?.id.toString()}
+                    onValueChange={(value) => {
+                      const option = shippingOptions.find(opt => opt.id.toString() === value);
+                      setSelectedShipping(option || null);
+                    }}
+                  >
+                    <div className="space-y-3">
+                      {shippingOptions.map((option) => (
+                        <div
+                          key={option.id}
+                          className={`flex items-center space-x-3 border rounded-lg p-4 cursor-pointer transition-colors ${
+                            selectedShipping?.id === option.id
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedShipping(option)}
+                        >
+                          <RadioGroupItem value={option.id.toString()} id={`shipping-${option.id}`} />
+                          <Label
+                            htmlFor={`shipping-${option.id}`}
+                            className="flex-1 cursor-pointer"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold">{option.name} - {option.service}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Entrega em até {option.delivery_time} dia{option.delivery_time > 1 ? 's' : ''} úteis
+                                </p>
+                                {option.discount > 0 && (
+                                  <p className="text-xs text-green-600">
+                                    Economia de R$ {option.discount.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                {option.discount > 0 && (
+                                  <p className="text-sm text-muted-foreground line-through">
+                                    R$ {option.price.toFixed(2)}
+                                  </p>
+                                )}
+                                <p className="font-bold text-lg">
+                                  R$ {option.final_price.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 3. Pagamento - DESTAQUE */}
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="bg-primary/5">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <CreditCard className="h-6 w-6" />
+                  Pagamento Seguro
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Processamento 100% seguro via <strong>Mercado Pago</strong>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
                 {!mpInitialized ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <span className="ml-3 text-muted-foreground">Carregando formas de pagamento...</span>
                   </div>
                 ) : !validateAddress() ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <p>Preencha o endereço de entrega para continuar</p>
+                  <div className="text-center py-12">
+                    <Package className="h-12 w-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+                    <p className="text-muted-foreground">
+                      Preencha o endereço e escolha o método de envio para continuar
+                    </p>
                   </div>
                 ) : (
-                  <div id="payment-brick-container">
+                  <div id="payment-brick-container" className="min-h-[400px]">
                     <Payment
                       initialization={{
                         amount: total,
@@ -464,6 +573,85 @@ export default function Checkout() {
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Coluna Lateral - Resumo do Pedido (Sticky no desktop) */}
+          <div className="lg:col-span-1">
+            <div className="lg:sticky lg:top-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Resumo do Pedido
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Produtos */}
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {items.map((item) => (
+                      <div key={item.id} className="pb-3 border-b last:border-0">
+                        <div className="flex justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{item.productName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.width}m × {item.height}m = {(item.width * item.height).toFixed(2)}m²
+                            </p>
+                            {item.artOption === "create" && (
+                              <p className="text-xs text-primary">+ Criação de arte</p>
+                            )}
+                          </div>
+                          <span className="font-semibold text-sm">R$ {item.total.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  {/* Totais */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span>R$ {subtotal.toFixed(2)}</span>
+                    </div>
+                    {artCreationFeeTotal > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Criação de arte:</span>
+                        <span>R$ {artCreationFeeTotal.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Frete:</span>
+                      <span>
+                        {selectedShipping ? (
+                          <>R$ {shipping.toFixed(2)}</>
+                        ) : (
+                          <span className="text-xs">A calcular</span>
+                        )}
+                      </span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-lg font-bold pt-2">
+                      <span>Total:</span>
+                      <span className="text-primary">R$ {total.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Informação de Entrega */}
+                  {selectedShipping && (
+                    <div className="mt-4 p-3 bg-primary/5 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Previsão de entrega:</p>
+                      <p className="font-semibold text-sm">
+                        {selectedShipping.delivery_time} dia{selectedShipping.delivery_time > 1 ? 's' : ''} úteis
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedShipping.name} {selectedShipping.service}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
