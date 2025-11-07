@@ -94,17 +94,23 @@ order_items
 ├── client/                 # Frontend React
 │   └── src/
 │       ├── components/    # Componentes reutilizáveis
+│       │   ├── ui/              # Shadcn/ui components
+│       │   ├── AdminDashboard.tsx        # Dashboard com métricas
+│       │   ├── AdminProductsManager.tsx  # CRUD de produtos
+│       │   ├── AdminProductForm.tsx      # Form criar/editar produto
+│       │   ├── AdminOrdersManager.tsx    # Gestão de pedidos
+│       │   └── AdminUsersManager.tsx     # Gestão de usuários
 │       ├── contexts/      # AuthContext, CartContext
 │       ├── pages/         
 │       │   ├── Home.tsx          # Homepage com lista de produtos
-│       │   ├── ProductDetail.tsx # **NOVO** - Página individual do produto
+│       │   ├── ProductDetail.tsx # Página individual do produto
 │       │   ├── Login.tsx         # Autenticação
-│       │   └── Admin.tsx         # Painel administrativo
+│       │   └── Admin.tsx         # Painel administrativo profissional
 │       └── lib/           # Utilitários (queryClient, utils)
 ├── server/                # Backend Express
 │   ├── auth.ts           # JWT/bcrypt authentication
 │   ├── db.ts             # Drizzle database connection
-│   ├── routes.ts         # API endpoints
+│   ├── routes.ts         # API endpoints (admin, users, products, orders)
 │   ├── storage.ts        # Database interface + operations
 │   ├── seed.ts           # Database seeding
 │   └── index.ts          # Entry point
@@ -126,6 +132,7 @@ order_items
 - `GET /api/products` - Listar produtos (público)
 - `GET /api/products/:id` - Detalhes do produto (público)
 - `POST /api/products` - Criar produto (admin only)
+- `PUT /api/products/:id` - Editar produto completo (admin only)
 - `PATCH /api/products/:id` - Atualizar produto (admin only)
 - `DELETE /api/products/:id` - Deletar produto (admin only)
 
@@ -133,6 +140,13 @@ order_items
 - `POST /api/orders` - Criar pedido (autenticado)
 - `GET /api/orders` - Listar pedidos (admin: todos os pedidos | customer: apenas seus pedidos)
 - `PATCH /api/orders/:id/status` - Atualizar status (admin only)
+
+### Users (Admin Only)
+- `GET /api/users` - Listar todos os usuários do sistema
+- `PATCH /api/users/:id/role` - Atualizar role do usuário (admin/customer)
+
+### Admin
+- `GET /api/admin/dashboard` - Estatísticas completas (receita, pedidos, clientes, produtos, gráficos)
 
 ## Variáveis de Ambiente
 
@@ -185,21 +199,30 @@ npm run seed
 - [x] Validação server-side de totais (anti-tampering)
 - [x] Proteção de rotas baseada em roles
 - [x] Seed com admin + cliente de teste + 6 produtos de exemplo
-- [x] Painel admin - visualização de pedidos
 - [x] Sistema de carrinho de compras funcional
 - [x] **Página de produto individual** - Estilo e-commerce moderno
 - [x] **Opções de arte** - Upload de arquivo ou criação (+R$ 35)
 - [x] **Persistência de carrinho** - localStorage (mantém após login)
 - [x] Validação backend de taxa de criação de arte
+- [x] **Painel Admin Profissional Completo**:
+  - [x] Dashboard com métricas (receita, pedidos, clientes, produtos)
+  - [x] Gráfico de status de pedidos
+  - [x] Gerenciamento de produtos (criar, editar, deletar, buscar, filtrar)
+  - [x] Gerenciamento de pedidos (listar, buscar, filtrar por status, atualizar status, ver detalhes)
+  - [x] Gerenciamento de usuários (listar, buscar, filtrar por role, atualizar roles)
+  - [x] Página de configurações
+  - [x] Campo "category" adicionado aos produtos
+- [x] **Novos Endpoints Admin**:
+  - [x] GET /api/admin/dashboard - Estatísticas completas
+  - [x] GET /api/users - Listar todos os usuários
+  - [x] PATCH /api/users/:id/role - Atualizar role do usuário
+  - [x] PUT /api/products/:id - Editar produto existente
 
 ### Pendente 🚧
-- [x] **EM TESTE** - Debugging do cálculo de preços (NaN no carrinho)
 - [ ] Integração Mercado Pago (Pix, cartão, boleto)
 - [ ] Cálculo automático de frete (Super Frete / Correios)
 - [ ] Input de endereço real no checkout
 - [ ] Seleção de método de pagamento no checkout
-- [ ] Painel admin - gerenciar usuários
-- [ ] Painel admin - atualizar status de pedidos
 - [ ] Upload de imagens de produtos
 - [ ] Rate limiting
 - [ ] Helmet.js para security headers
@@ -254,11 +277,12 @@ npm run seed
    - Permitir usuário escolher transportadora
    - Calcular baseado em CEP + dimensões
 
-3. **Admin Panel**
-   - Dashboard com estatísticas
-   - Gerenciamento de pedidos (status, tracking)
-   - Gerenciamento de usuários
-   - Upload de imagens de produtos
+3. **Admin Panel Enhancements**
+   - ✅ Dashboard com estatísticas completo
+   - ✅ Gerenciamento de pedidos (status, tracking, filtros)
+   - ✅ Gerenciamento de usuários
+   - [ ] Upload de imagens de produtos
+   - [ ] Relatórios e exportação de dados
 
 4. **UX Improvements**
    - Form de endereço completo no checkout
@@ -276,10 +300,34 @@ npm run seed
 > ⚠️ **IMPORTANTE:** Troque a senha padrão em produção!
 
 ### Funcionalidades Disponíveis
-- ✅ Gerenciar Produtos (criar, listar, deletar)
-- ✅ Visualizar Pedidos (todos os pedidos do sistema)
-- 🔄 Gerenciar Usuários (em desenvolvimento)
-- 🔄 Dashboard com estatísticas (em desenvolvimento)
+- ✅ **Dashboard Completo**
+  - Métricas de receita total, pedidos, clientes e produtos
+  - Gráfico visual de status de pedidos
+  - Lista de pedidos recentes
+  
+- ✅ **Gerenciar Produtos**
+  - Criar novos produtos com categoria
+  - Editar produtos existentes
+  - Deletar produtos
+  - Buscar por nome, descrição ou categoria
+  - Ativar/desativar produtos
+  
+- ✅ **Gerenciar Pedidos**
+  - Visualizar todos os pedidos do sistema
+  - Buscar por ID, cliente ou endereço
+  - Filtrar por status (Pendente, Pago, Enviado, Entregue, Cancelado)
+  - Atualizar status de pedidos
+  - Ver detalhes expandidos dos itens
+  
+- ✅ **Gerenciar Usuários**
+  - Listar todos os usuários
+  - Buscar por nome, email ou ID
+  - Filtrar por role (Admin/Cliente)
+  - Promover usuários a admin ou rebaixar a cliente
+  
+- ✅ **Configurações**
+  - Informações sobre integrações (Mercado Pago, SuperFrete)
+  - Versão do sistema
 
 📖 **Guia Completo:** Consulte [ADMIN_GUIDE.md](./ADMIN_GUIDE.md) para instruções detalhadas sobre configuração de chaves de API, deployment e mais.
 
