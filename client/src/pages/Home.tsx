@@ -77,7 +77,9 @@ export default function Home() {
                     id={product.id}
                     name={product.name}
                     description={product.description}
-                    pricePerM2={parseFloat(product.pricePerM2)}
+                    pricingType={product.pricingType}
+                    pricePerM2={product.pricePerM2 ? parseFloat(product.pricePerM2) : undefined}
+                    fixedPrice={product.fixedPrice ? parseFloat(product.fixedPrice) : undefined}
                     image={product.imageUrl || vinylImage}
                   />
                 ))

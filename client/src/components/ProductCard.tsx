@@ -7,7 +7,9 @@ interface ProductCardProps {
   id: string;
   name: string;
   description: string;
-  pricePerM2: number;
+  pricingType: 'per_m2' | 'fixed';
+  pricePerM2?: number;
+  fixedPrice?: number;
   image: string;
 }
 
@@ -15,7 +17,9 @@ export default function ProductCard({
   id, 
   name, 
   description, 
+  pricingType,
   pricePerM2, 
+  fixedPrice,
   image,
 }: ProductCardProps) {
   return (
@@ -48,9 +52,18 @@ export default function ProductCard({
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold text-primary" data-testid={`text-price-${id}`}>
-            R$ {pricePerM2.toFixed(2)}
+            {pricingType === 'per_m2' && pricePerM2 !== undefined
+              ? `R$ ${pricePerM2.toFixed(2)}`
+              : pricingType === 'fixed' && fixedPrice !== undefined
+              ? `R$ ${fixedPrice.toFixed(2)}`
+              : 'Preço sob consulta'}
           </span>
-          <span className="text-sm text-muted-foreground">/m²</span>
+          {pricingType === 'per_m2' && (
+            <span className="text-sm text-muted-foreground">/m²</span>
+          )}
+          {pricingType === 'fixed' && (
+            <span className="text-sm text-muted-foreground">/unidade</span>
+          )}
         </div>
       </CardHeader>
 
