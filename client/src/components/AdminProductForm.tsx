@@ -22,6 +22,7 @@ interface ProductFormData {
   maxWidth: string;
   maxHeight: string;
   imageUrl?: string;
+  imageUrls?: string[];
   active: boolean;
 }
 
@@ -46,74 +47,91 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
     maxWidth: product?.maxWidth || "",
     maxHeight: product?.maxHeight || "",
     imageUrl: product?.imageUrl || "",
+    imageUrls: product?.imageUrls || [],
     active: product?.active ?? true
   });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    // Validar tipo de arquivo
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Formato inválido",
-        description: "Use apenas imagens JPG, PNG ou WebP",
-        variant: "destructive",
-      });
-      return;
-    }
+    const maxSize = 5 * 1024 * 1024;
 
-    // Validar tamanho (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Arquivo muito grande",
-        description: "A imagem deve ter no máximo 5MB",
-        variant: "destructive",
-      });
-      return;
-    }
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-    setUploading(true);
-
-    try {
-      const formDataUpload = new FormData();
-      formDataUpload.append("image", file);
-
-      const response = await fetch("/api/upload/product-image", {
-        method: "POST",
-        credentials: "include",
-        body: formDataUpload,
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao fazer upload");
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Formato inválido",
+          description: `${file.name}: Use apenas imagens JPG, PNG ou WebP`,
+          variant: "destructive",
+        });
+        continue;
       }
 
-      const data = await response.json();
-      setFormData({ ...formData, imageUrl: data.imageUrl });
+      if (file.size > maxSize) {
+        toast({
+          title: "Arquivo muito grande",
+          description: `${file.name}: A imagem deve ter no máximo 5MB`,
+          variant: "destructive",
+        });
+        continue;
+      }
 
-      toast({
-        title: "Upload concluído!",
-        description: "Imagem enviada com sucesso",
-      });
-    } catch (error) {
-      console.error("Erro ao fazer upload:", error);
-      toast({
-        title: "Erro no upload",
-        description: "Não foi possível enviar a imagem",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
+      setUploading(true);
+
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("image", file);
+
+        const response = await fetch("/api/upload/product-image", {
+          method: "POST",
+          credentials: "include",
+          body: formDataUpload,
+        });
+
+        if (!response.ok) {
+          throw new Error("Erro ao fazer upload");
+        }
+
+        const data = await response.json();
+        
+        setFormData(prev => ({
+          ...prev,
+          imageUrls: [...(prev.imageUrls || []), data.imageUrl],
+          imageUrl: prev.imageUrl || data.imageUrl
+        }));
+
+        toast({
+          title: "Upload concluído!",
+          description: `${file.name} enviada com sucesso`,
+        });
+      } catch (error) {
+        console.error("Erro ao fazer upload:", error);
+        toast({
+          title: "Erro no upload",
+          description: `Não foi possível enviar ${file.name}`,
+          variant: "destructive",
+        });
+      }
     }
-  };
-
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, imageUrl: "" });
+    
+    setUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const newImageUrls = [...(formData.imageUrls || [])];
+    newImageUrls.splice(index, 1);
+    
+    setFormData(prev => ({
+      ...prev,
+      imageUrls: newImageUrls,
+      imageUrl: newImageUrls[0] || ""
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -266,51 +284,58 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="image">Imagem do Produto</Label>
+            <Label htmlFor="image">Imagens do Produto</Label>
             
-            {formData.imageUrl ? (
-              <div className="relative border border-border rounded-md overflow-hidden">
-                <img 
-                  src={formData.imageUrl} 
-                  alt="Preview do produto" 
-                  className="w-full h-48 object-cover"
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={handleRemoveImage}
-                  data-testid="button-remove-image"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div 
-                className="border-2 border-dashed border-border rounded-md p-8 text-center hover-elevate cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {uploading ? (
-                  <>
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-primary animate-pulse" />
-                    <p className="text-sm text-muted-foreground">
-                      Fazendo upload...
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Clique para fazer upload da imagem
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      JPG, PNG ou WebP (máx. 5MB)
-                    </p>
-                  </>
-                )}
+            {formData.imageUrls && formData.imageUrls.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                {formData.imageUrls.map((imageUrl, index) => (
+                  <div key={index} className="relative border border-border rounded-md overflow-hidden group">
+                    <img 
+                      src={imageUrl} 
+                      alt={`Produto ${index + 1}`} 
+                      className="w-full h-32 object-cover"
+                    />
+                    <div className="absolute top-0 left-0 bg-primary text-primary-foreground px-2 py-1 text-xs font-semibold">
+                      {index === 0 ? "Principal" : index + 1}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveImage(index)}
+                      data-testid={`button-remove-image-${index}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
+            
+            <div 
+              className="border-2 border-dashed border-border rounded-md p-8 text-center hover-elevate cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <>
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-primary animate-pulse" />
+                  <p className="text-sm text-muted-foreground">
+                    Fazendo upload...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Clique para adicionar imagens
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    JPG, PNG ou WebP (máx. 5MB cada) - Selecione múltiplas imagens
+                  </p>
+                </>
+              )}
+            </div>
             
             <input
               ref={fileInputRef}
@@ -320,6 +345,7 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
               className="hidden"
               onChange={handleFileChange}
               disabled={uploading}
+              multiple
               data-testid="input-product-image"
             />
           </div>

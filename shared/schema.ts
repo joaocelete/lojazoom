@@ -41,6 +41,7 @@ export const products = pgTable("products", {
   maxWidth: decimal("max_width", { precision: 10, scale: 2 }),
   maxHeight: decimal("max_height", { precision: 10, scale: 2 }),
   imageUrl: text("image_url"),
+  imageUrls: text("image_urls").array(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

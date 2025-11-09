@@ -71,18 +71,24 @@ export default function Home() {
                   Nenhum produto disponível no momento.
                 </div>
               ) : (
-                products.map(product => (
-                  <ProductCard
-                    key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    description={product.description}
-                    pricingType={product.pricingType}
-                    pricePerM2={product.pricePerM2 ? parseFloat(product.pricePerM2) : undefined}
-                    fixedPrice={product.fixedPrice ? parseFloat(product.fixedPrice) : undefined}
-                    image={product.imageUrl || vinylImage}
-                  />
-                ))
+                products.map(product => {
+                  const displayImage = product.imageUrls && product.imageUrls.length > 0
+                    ? product.imageUrls[0]
+                    : product.imageUrl || vinylImage;
+                  
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      id={product.id}
+                      name={product.name}
+                      description={product.description}
+                      pricingType={product.pricingType}
+                      pricePerM2={product.pricePerM2 ? parseFloat(product.pricePerM2) : undefined}
+                      fixedPrice={product.fixedPrice ? parseFloat(product.fixedPrice) : undefined}
+                      image={displayImage}
+                    />
+                  );
+                })
               )}
             </div>
           </div>

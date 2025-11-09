@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ShoppingCart, Ruler, Upload, Palette, ArrowLeft, FileText, CheckCircle2, X } from "lucide-react";
-import { useState, useRef } from "react";
+import { ShoppingCart, Ruler, Upload, Palette, ArrowLeft, FileText, CheckCircle2, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
+import useEmblaCarousel from "embla-carousel-react";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -28,6 +29,24 @@ export default function ProductDetail() {
   const [uploading, setUploading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const artFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    onSelect();
+  }, [emblaApi, onSelect]);
 
   const { data, isLoading } = useQuery<{product: Product}>({
     queryKey: [`/api/products/${id}`],
@@ -326,14 +345,101 @@ export default function ProductDetail() {
 
         <div className="grid lg:grid-cols-2 gap-12 max-w-7xl mx-auto">
           <div className="space-y-6">
-            <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 shadow-2xl">
-              <img
-                src={product.imageUrl || ""}
-                alt={product.name}
-                className="w-full h-full object-cover"
-                data-testid="img-product"
-              />
-            </div>
+            {(() => {
+              const images = product.imageUrls && product.imageUrls.length > 0
+                ? product.imageUrls
+                : product.imageUrl
+                ? [product.imageUrl]
+                : [];
+
+              return images.length > 1 ? (
+                <>
+                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 shadow-2xl">
+                    <div className="overflow-hidden" ref={emblaRef}>
+                      <div className="flex">
+                        {images.map((imageUrl, index) => (
+                          <div key={index} className="flex-shrink-0 w-full" data-testid={`carousel-slide-${index}`}>
+                            <img
+                              src={imageUrl}
+                              alt={`${product.name} - Imagem ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                      onClick={scrollPrev}
+                      data-testid="button-carousel-prev"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                      onClick={scrollNext}
+                      data-testid="button-carousel-next"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {images.map((_, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            index === selectedIndex
+                              ? 'bg-primary w-8'
+                              : 'bg-primary/30 hover:bg-primary/50'
+                          }`}
+                          onClick={() => scrollTo(index)}
+                          data-testid={`carousel-dot-${index}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    {images.map((imageUrl, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all hover-elevate ${
+                          index === selectedIndex
+                            ? 'border-primary ring-2 ring-primary/20'
+                            : 'border-border'
+                        }`}
+                        onClick={() => scrollTo(index)}
+                        data-testid={`thumbnail-${index}`}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Miniatura ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 shadow-2xl">
+                  <img
+                    src={images[0] || ""}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    data-testid="img-product"
+                  />
+                </div>
+              );
+            })()}
           </div>
 
           <div className="space-y-8">
