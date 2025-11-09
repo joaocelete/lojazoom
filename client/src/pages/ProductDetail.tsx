@@ -21,6 +21,7 @@ export default function ProductDetail() {
 
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [artOption, setArtOption] = useState<"upload" | "create">("upload");
   const [artFile, setArtFile] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
@@ -39,19 +40,27 @@ export default function ProductDetail() {
   const calculateTotal = () => {
     if (!product) return { productTotal: 0, artFee: 0, total: 0 };
     
-    const w = parseFloat(width) || 0;
-    const h = parseFloat(height) || 0;
-    const pricePerM2 = parseFloat(product.pricePerM2);
+    let productTotal = 0;
     
-    if (isNaN(pricePerM2)) return { productTotal: 0, artFee: 0, total: 0 };
+    if (product.pricingType === "fixed") {
+      const qty = parseFloat(quantity) || 0;
+      const fixedPrice = parseFloat(product.fixedPrice || "0");
+      productTotal = qty * fixedPrice;
+    } else {
+      const w = parseFloat(width) || 0;
+      const h = parseFloat(height) || 0;
+      const pricePerM2 = parseFloat(product.pricePerM2 || "0");
+      productTotal = w * h * pricePerM2;
+    }
     
-    const productTotal = w * h * pricePerM2;
     const artFee = artOption === "create" ? ART_CREATION_FEE : 0;
     return { productTotal, artFee, total: productTotal + artFee };
   };
 
   const { productTotal, artFee, total } = calculateTotal();
-  const area = (parseFloat(width) || 0) * (parseFloat(height) || 0);
+  const area = product?.pricingType === "per_m2" 
+    ? (parseFloat(width) || 0) * (parseFloat(height) || 0)
+    : 0;
 
   const handleArtFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,50 +146,88 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     if (!product) return;
 
-    const w = parseFloat(width) || 0;
-    const h = parseFloat(height) || 0;
+    if (product.pricingType === "fixed") {
+      // Validação para produtos com preço fixo
+      const qty = parseFloat(quantity) || 0;
+      if (qty <= 0 || !Number.isInteger(qty)) {
+        toast({
+          title: "Quantidade inválida",
+          description: "Por favor, informe uma quantidade inteira maior que zero.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (w <= 0 || h <= 0) {
-      toast({
-        title: "Dimensões inválidas",
-        description: "Por favor, informe largura e altura maiores que zero.",
-        variant: "destructive",
-      });
-      return;
+      // Validar que fixedPrice existe e é válido
+      const fixedPrice = parseFloat(product.fixedPrice || "0");
+      if (isNaN(fixedPrice) || fixedPrice <= 0) {
+        toast({
+          title: "Erro no preço",
+          description: "Produto com preço inválido. Entre em contato com o suporte.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (artOption === "upload" && !artFile.trim()) {
+        toast({
+          title: "Arquivo de arte necessário",
+          description: "Por favor, envie o arquivo de arte ou escolha criação de arte.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const calculatedTotal = qty * fixedPrice;
+      
+      if (isNaN(calculatedTotal) || !isFinite(calculatedTotal)) {
+        toast({
+          title: "Erro no cálculo",
+          description: "Erro ao calcular o total. Por favor, tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      addItem(product, 0, 0, calculatedTotal, artOption, artFile, qty);
+    } else {
+      // Validação para produtos por m²
+      const w = parseFloat(width) || 0;
+      const h = parseFloat(height) || 0;
+
+      if (w <= 0 || h <= 0) {
+        toast({
+          title: "Dimensões inválidas",
+          description: "Por favor, informe largura e altura maiores que zero.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (artOption === "upload" && !artFile.trim()) {
+        toast({
+          title: "Arquivo de arte necessário",
+          description: "Por favor, envie o arquivo de arte ou escolha criação de arte.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const pricePerM2 = parseFloat(product.pricePerM2 || "0");
+      const calculatedTotal = w * h * pricePerM2;
+      
+      if (isNaN(calculatedTotal) || !isFinite(calculatedTotal)) {
+        toast({
+          title: "Erro no cálculo",
+          description: "Erro ao calcular o total. Verifique as dimensões.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      addItem(product, w, h, calculatedTotal, artOption, artFile);
     }
 
-    if (artOption === "upload" && !artFile.trim()) {
-      toast({
-        title: "Arquivo de arte necessário",
-        description: "Por favor, informe o nome do arquivo de arte ou escolha criação de arte.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const pricePerM2 = parseFloat(product.pricePerM2);
-    
-    if (isNaN(pricePerM2) || pricePerM2 <= 0) {
-      toast({
-        title: "Erro no preço",
-        description: "Erro ao calcular o preço do produto. Por favor, tente novamente.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const calculatedProductTotal = w * h * pricePerM2;
-    
-    if (isNaN(calculatedProductTotal) || !isFinite(calculatedProductTotal)) {
-      toast({
-        title: "Erro no cálculo",
-        description: "Erro ao calcular o total. Verifique as dimensões.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    addItem(product, w, h, calculatedProductTotal, artOption, artFile);
     toast({
       title: "Produto adicionado!",
       description: "Item adicionado ao carrinho com sucesso.",
@@ -268,54 +315,91 @@ export default function ProductDetail() {
               <p className="text-lg text-muted-foreground leading-relaxed" data-testid="text-product-description">
                 {product.description}
               </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-primary" data-testid="text-price-per-m2">
-                  R$ {parseFloat(product.pricePerM2).toFixed(2)}
-                </span>
-                <span className="text-lg text-muted-foreground">/m²</span>
-              </div>
+              {product.pricingType === "fixed" ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-primary" data-testid="text-fixed-price">
+                    R$ {parseFloat(product.fixedPrice || "0").toFixed(2)}
+                  </span>
+                  <span className="text-lg text-muted-foreground">por unidade</span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-primary" data-testid="text-price-per-m2">
+                    R$ {parseFloat(product.pricePerM2 || "0").toFixed(2)}
+                  </span>
+                  <span className="text-lg text-muted-foreground">/m²</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-6 bg-card p-6 rounded-xl border border-border shadow-lg">
-              <div className="flex items-center gap-2 text-lg font-semibold">
-                <Ruler className="h-5 w-5 text-primary" />
-                Calcule suas dimensões
-              </div>
+              {product.pricingType === "fixed" ? (
+                <>
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
+                    Quantidade
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="width" className="text-sm font-medium">
-                    Largura (m)
-                  </Label>
-                  <Input
-                    id="width"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={width}
-                    onChange={(e) => setWidth(e.target.value)}
-                    className="h-12 text-lg"
-                    data-testid="input-width"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="height" className="text-sm font-medium">
-                    Altura (m)
-                  </Label>
-                  <Input
-                    id="height"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    className="h-12 text-lg"
-                    data-testid="input-height"
-                  />
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity" className="text-sm font-medium">
+                      Quantidade de unidades
+                    </Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      step="1"
+                      placeholder="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className="h-12 text-lg"
+                      data-testid="input-quantity"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <Ruler className="h-5 w-5 text-primary" />
+                    Calcule suas dimensões
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="width" className="text-sm font-medium">
+                        Largura (m)
+                      </Label>
+                      <Input
+                        id="width"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={width}
+                        onChange={(e) => setWidth(e.target.value)}
+                        className="h-12 text-lg"
+                        data-testid="input-width"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="height" className="text-sm font-medium">
+                        Altura (m)
+                      </Label>
+                      <Input
+                        id="height"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={height}
+                        onChange={(e) => setHeight(e.target.value)}
+                        className="h-12 text-lg"
+                        data-testid="input-height"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <Label className="text-base font-semibold">Opções de Arte</Label>

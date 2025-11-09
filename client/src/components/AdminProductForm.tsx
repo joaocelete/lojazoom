@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useRef } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
@@ -14,7 +15,9 @@ interface ProductFormData {
   name: string;
   description: string;
   category: string;
+  pricingType: string;
   pricePerM2: string;
+  fixedPrice: string;
   imageUrl?: string;
   active: boolean;
 }
@@ -34,7 +37,9 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
     name: product?.name || "",
     description: product?.description || "",
     category: product?.category || "banner",
+    pricingType: product?.pricingType || "per_m2",
     pricePerM2: product?.pricePerM2 || "",
+    fixedPrice: product?.fixedPrice || "",
     imageUrl: product?.imageUrl || "",
     active: product?.active ?? true
   });
@@ -159,19 +164,57 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Preço por m² (R$)</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.pricePerM2}
-              onChange={(e) => setFormData({ ...formData, pricePerM2: e.target.value })}
-              placeholder="0.00"
-              required
-              data-testid="input-product-price"
-            />
+            <Label htmlFor="pricingType">Tipo de Precificação</Label>
+            <Select
+              value={formData.pricingType}
+              onValueChange={(value) => setFormData({ ...formData, pricingType: value })}
+            >
+              <SelectTrigger id="pricingType" data-testid="select-pricing-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="per_m2">Preço por m² (área)</SelectItem>
+                <SelectItem value="fixed">Preço Fixo (unitário)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {formData.pricingType === "per_m2" 
+                ? "Cliente informa largura × altura. Ex: banners, lonas, adesivos."
+                : "Produto com preço fixo. Ex: cartões de visita, flyers, placas."}
+            </p>
           </div>
+
+          {formData.pricingType === "per_m2" ? (
+            <div className="space-y-2">
+              <Label htmlFor="pricePerM2">Preço por m² (R$)</Label>
+              <Input
+                id="pricePerM2"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.pricePerM2}
+                onChange={(e) => setFormData({ ...formData, pricePerM2: e.target.value })}
+                placeholder="0.00"
+                required
+                data-testid="input-product-price-m2"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="fixedPrice">Preço Fixo (R$)</Label>
+              <Input
+                id="fixedPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.fixedPrice}
+                onChange={(e) => setFormData({ ...formData, fixedPrice: e.target.value })}
+                placeholder="0.00"
+                required
+                data-testid="input-product-price-fixed"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="image">Imagem do Produto</Label>
