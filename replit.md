@@ -128,3 +128,46 @@ Melhor Envio uses OAuth 2.0. To get a token:
 4. First option auto-selected
 5. Sidebar updates with shipping cost
 6. Payment Brick unlocks when address + shipping complete
+
+### Store Pickup Feature (Retirada no Local)
+**Added:** November 2025  
+**Database Field:** `deliveryType` in orders table (`'pickup' | 'delivery'`)
+
+**Features:**
+- ✅ **Free Pickup**: Customers can choose to pick up orders at the physical store (R$ 0.00 shipping)
+- ✅ **Simplified Checkout**: When pickup is selected, address form and shipping options are hidden
+- ✅ **Instant Payment**: Payment Brick unlocks immediately without requiring address input
+- ✅ **Store Information**: Displays pickup location with address and business hours
+- ✅ **Backend Validation**: Accepts shipping = "0.00" only when `deliveryType = 'pickup'`
+
+**Pickup Address:**
+- Av. Paulista, 1000 - Bela Vista, São Paulo - SP, CEP: 01310-100
+- Hours: Monday to Friday, 9am to 6pm
+
+**Implementation Details:**
+```typescript
+// Database schema (shared/schema.ts)
+deliveryType: varchar("delivery_type").default("delivery").notNull()
+
+// Checkout validation
+if (deliveryType === 'pickup') {
+  shipping = 0;
+  shippingAddress = 'Retirada no Local - Av. Paulista, 1000, São Paulo - SP';
+  // Address form hidden, Payment Brick immediately available
+}
+```
+
+**UI/UX Flow:**
+1. Card "Tipo de Entrega" with 2 radio options:
+   - **Entrega no Endereço**: Shows address form + shipping calculator
+   - **Retirada no Local**: Shows store info, hides forms, R$ 0.00 shipping
+2. User selects pickup → Address/shipping sections collapse
+3. Order summary updates: "Frete: R$ 0,00"
+4. Payment Brick enables instantly (no waiting for address)
+5. Order saved with `deliveryType: 'pickup'` and zero shipping cost
+
+**Benefits:**
+- ✅ **Conversion Boost**: Eliminates shipping cost barrier for local customers
+- ✅ **Faster Checkout**: Skips address entry, reducing friction
+- ✅ **Testing Friendly**: Allows payment testing without Melhor Envio API token
+- ✅ **Cost Savings**: No shipping fees for customers willing to pick up
