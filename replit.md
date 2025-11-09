@@ -171,3 +171,74 @@ if (deliveryType === 'pickup') {
 - ✅ **Faster Checkout**: Skips address entry, reducing friction
 - ✅ **Testing Friendly**: Allows payment testing without Melhor Envio API token
 - ✅ **Cost Savings**: No shipping fees for customers willing to pick up
+
+### File Upload System
+**Added:** November 2025  
+**Dependencies:** `multer`, `@types/multer`  
+**Storage:** Local file system in `uploads/` directory
+
+**Features:**
+- ✅ **Product Image Upload**: Admins can upload product images (JPG, PNG, WebP)
+- ✅ **Artwork File Upload**: Customers can upload art files (PDF, CDR only)
+- ✅ **File Validation**: Server-side validation of file types and sizes
+- ✅ **Preview & Remove**: UI shows uploaded files with remove option
+- ✅ **Secure Storage**: Files stored in dedicated directories with unique names
+
+**File Type Restrictions:**
+- **Product Images**: JPG, PNG, WebP (max 5MB)
+- **Artwork Files**: PDF, CDR (max 20MB)
+
+**API Endpoints:**
+```typescript
+// Upload product image (admin only)
+POST /api/upload/product-image
+Headers: { Content-Type: multipart/form-data }
+Body: FormData with 'image' field
+Response: { imageUrl: string, filename: string }
+
+// Upload artwork file (authenticated users)
+POST /api/upload/artwork
+Headers: { Content-Type: multipart/form-data }
+Body: FormData with 'artwork' field
+Response: { artworkUrl: string, filename: string, originalName: string }
+
+// Static file serving
+GET /uploads/products/:filename
+GET /uploads/artwork/:filename
+```
+
+**Implementation:**
+```typescript
+// server/upload.ts - Multer configuration
+- productStorage: uploads/products/ with unique filenames
+- artworkStorage: uploads/artwork/ with unique filenames
+- imageFilter: validates JPG, PNG, WebP MIME types
+- artworkFilter: validates PDF, CDR extensions and MIME types
+
+// server/routes.ts - Upload routes
+- Authentication required for all uploads
+- Admin-only for product images
+- Error handling with descriptive messages
+```
+
+**Frontend Components:**
+```typescript
+// AdminProductForm.tsx - Product image upload
+- File input with preview
+- Drag & drop support
+- Upload progress indicator
+- Remove uploaded image
+
+// ProductDetail.tsx - Artwork upload
+- Button to select PDF/CDR file
+- File validation before upload
+- Success confirmation with filename
+- Remove uploaded file option
+```
+
+**Benefits:**
+- ✅ **Professional Images**: Admins can upload high-quality product photos
+- ✅ **Customer Art**: Customers provide print-ready files without email
+- ✅ **Type Safety**: Validates file formats to prevent errors
+- ✅ **User Feedback**: Clear success/error messages during upload
+- ✅ **Security**: Server-side validation prevents malicious files
