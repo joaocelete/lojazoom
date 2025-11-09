@@ -63,6 +63,24 @@ export default function Checkout() {
       return;
     }
 
+    // Preencher automaticamente endereço do usuário
+    if (user.street && user.zipCode) {
+      setShippingAddress({
+        street: user.street || "",
+        number: user.number || "",
+        complement: user.complement || "",
+        neighborhood: user.neighborhood || "",
+        city: user.city || "",
+        state: user.state || "",
+        zipCode: user.zipCode || "",
+      });
+      
+      // Auto-calcular frete se o CEP estiver completo
+      if (user.zipCode && user.zipCode.length >= 8) {
+        calculateShipping(user.zipCode);
+      }
+    }
+
     // Inicializar Mercado Pago SDK
     fetch("/api/payments/public-key")
       .then(res => res.json())

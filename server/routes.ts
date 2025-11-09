@@ -373,6 +373,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.patch("/api/users/profile", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Não autorizado" });
+      }
+
+      const { fullName, cpf, phone, street, number, complement, neighborhood, city, state, zipCode } = req.body;
+
+      const user = await storage.updateUserProfile(userId, {
+        fullName,
+        cpf,
+        phone,
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        zipCode,
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar perfil" });
+    }
+  });
+
   // Dashboard Stats (Admin only)
   app.get("/api/admin/dashboard", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
