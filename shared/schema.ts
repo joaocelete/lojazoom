@@ -38,15 +38,77 @@ export const products = pgTable("products", {
   pricingType: text("pricing_type").notNull().default("per_m2"),
   pricePerM2: decimal("price_per_m2", { precision: 10, scale: 2 }),
   fixedPrice: decimal("fixed_price", { precision: 10, scale: 2 }),
+  maxWidth: decimal("max_width", { precision: 10, scale: 2 }),
+  maxHeight: decimal("max_height", { precision: 10, scale: 2 }),
   imageUrl: text("image_url"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertProductSchema = createInsertSchema(products)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    pricingType: z.enum(["per_m2", "fixed"]),
+    pricePerM2: z.string().optional(),
+    fixedPrice: z.string().optional(),
+    maxWidth: z.string().optional(),
+    maxHeight: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.pricingType === "per_m2") {
+        const price = parseFloat(data.pricePerM2 || "0");
+        return !isNaN(price) && price > 0;
+      }
+      return true;
+    },
+    {
+      message: "pricePerM2 é obrigatório e deve ser maior que zero para produtos por m²",
+      path: ["pricePerM2"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.pricingType === "fixed") {
+        const price = parseFloat(data.fixedPrice || "0");
+        return !isNaN(price) && price > 0;
+      }
+      return true;
+    },
+    {
+      message: "fixedPrice é obrigatório e deve ser maior que zero para produtos com preço fixo",
+      path: ["fixedPrice"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.maxWidth) {
+        const width = parseFloat(data.maxWidth);
+        return !isNaN(width) && width > 0;
+      }
+      return true;
+    },
+    {
+      message: "maxWidth deve ser um número positivo",
+      path: ["maxWidth"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.maxHeight) {
+        const height = parseFloat(data.maxHeight);
+        return !isNaN(height) && height > 0;
+      }
+      return true;
+    },
+    {
+      message: "maxHeight deve ser um número positivo",
+      path: ["maxHeight"],
+    }
+  );
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;

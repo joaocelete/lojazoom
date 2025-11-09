@@ -6,9 +6,12 @@ export interface CartItem {
   productId: string;
   productName: string;
   image: string;
-  width: number;
-  height: number;
-  pricePerM2: number;
+  pricingType: "per_m2" | "fixed";
+  width?: number;
+  height?: number;
+  pricePerM2?: number;
+  quantity?: number;
+  fixedPrice?: number;
   total: number;
   artOption: "upload" | "create";
   artFile?: string;
@@ -17,7 +20,7 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string) => void;
+  addItem: (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string, quantity?: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   totalItems: number;
@@ -39,9 +42,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         
         return parsed.map((item: any) => ({
           ...item,
-          width: Number(item.width) || 0,
-          height: Number(item.height) || 0,
-          pricePerM2: Number(item.pricePerM2) || 0,
+          pricingType: item.pricingType || "per_m2",
+          width: item.width ? Number(item.width) : undefined,
+          height: item.height ? Number(item.height) : undefined,
+          pricePerM2: item.pricePerM2 ? Number(item.pricePerM2) : undefined,
+          quantity: item.quantity ? Number(item.quantity) : undefined,
+          fixedPrice: item.fixedPrice ? Number(item.fixedPrice) : undefined,
           total: Number(item.total) || 0,
           artCreationFee: Number(item.artCreationFee) || 0,
         }));
@@ -52,24 +58,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
-  const addItem = (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string) => {
+  const addItem = (product: Product, width: number, height: number, total: number, artOption: "upload" | "create", artFile?: string, quantity?: number) => {
     const artCreationFee = artOption === "create" ? 35.00 : 0;
+    
     const newItem: CartItem = {
       id: `${product.id}-${Date.now()}`,
       productId: product.id,
       productName: product.name,
       image: product.imageUrl || "",
-      width,
-      height,
-      pricePerM2: parseFloat(product.pricePerM2),
+      pricingType: product.pricingType as "per_m2" | "fixed",
       total,
       artOption,
       artFile,
       artCreationFee,
     };
+
+    if (product.pricingType === "fixed") {
+      newItem.quantity = quantity || 1;
+      newItem.fixedPrice = parseFloat(product.fixedPrice || "0");
+    } else {
+      newItem.width = width;
+      newItem.height = height;
+      newItem.pricePerM2 = parseFloat(product.pricePerM2 || "0");
+    }
     
     console.log("CartContext - addItem:", {
       productName: product.name,
+      pricingType: product.pricingType,
       total,
       totalType: typeof total,
       isNaN: isNaN(total),

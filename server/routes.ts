@@ -174,21 +174,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: `Produto ${item.productId} não encontrado` });
         }
 
-        const width = parseFloat(item.width);
-        const height = parseFloat(item.height);
-        
-        if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
-          return res.status(400).json({ message: "Dimensões inválidas" });
+        let itemTotal = 0;
+        let orderItemData: any = {
+          productId: product.id,
+          productName: product.name,
+          pricingType: product.pricingType,
+          artOption: item.artOption || "upload",
+          artFile: item.artFile || null,
+        };
+
+        if (product.pricingType === "fixed") {
+          const quantityNum = Number(item.quantity || "1");
+          const fixedPrice = parseFloat(product.fixedPrice || "0");
+          
+          if (isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
+            return res.status(400).json({ message: "Quantidade deve ser um número inteiro positivo" });
+          }
+          
+          const quantity = quantityNum;
+          
+          if (isNaN(fixedPrice) || fixedPrice <= 0) {
+            return res.status(500).json({ message: "Erro no preço fixo do produto" });
+          }
+          
+          itemTotal = quantity * fixedPrice;
+          
+          orderItemData.quantity = quantity;
+          orderItemData.unitPrice = product.fixedPrice;
+          orderItemData.total = itemTotal.toString();
+        } else {
+          const width = parseFloat(item.width);
+          const height = parseFloat(item.height);
+          
+          if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+            return res.status(400).json({ message: "Dimensões inválidas para produto por m²" });
+          }
+          
+          // Validar limites máximos de dimensão
+          if (product.maxWidth) {
+            const maxWidth = parseFloat(product.maxWidth);
+            if (width > maxWidth) {
+              return res.status(400).json({ 
+                message: `Largura excede o limite máximo de ${maxWidth.toFixed(2)}m para este produto` 
+              });
+            }
+          }
+          
+          if (product.maxHeight) {
+            const maxHeight = parseFloat(product.maxHeight);
+            if (height > maxHeight) {
+              return res.status(400).json({ 
+                message: `Altura excede o limite máximo de ${maxHeight.toFixed(2)}m para este produto` 
+              });
+            }
+          }
+          
+          const area = width * height;
+          const pricePerM2 = parseFloat(product.pricePerM2 || "0");
+          
+          if (isNaN(pricePerM2) || pricePerM2 <= 0) {
+            return res.status(500).json({ message: "Erro no preço por m² do produto" });
+          }
+          
+          itemTotal = area * pricePerM2;
+          
+          orderItemData.width = item.width.toString();
+          orderItemData.height = item.height.toString();
+          orderItemData.area = area.toString();
+          orderItemData.pricePerM2 = product.pricePerM2;
+          orderItemData.total = itemTotal.toString();
         }
-        
-        const area = width * height;
-        const pricePerM2 = parseFloat(product.pricePerM2);
-        
-        if (isNaN(pricePerM2)) {
-          return res.status(500).json({ message: "Erro no preço do produto" });
-        }
-        
-        const itemTotal = area * pricePerM2;
+
         calculatedSubtotal += itemTotal;
 
         const rawArtFee = item.artCreationFee || "0";
@@ -198,19 +254,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Taxa de criação de arte inválida" });
         }
         calculatedArtFee += artCreationFee;
-
-        orderItemsData.push({
-          productId: product.id,
-          productName: product.name,
-          width: item.width.toString(),
-          height: item.height.toString(),
-          area: area.toString(),
-          pricePerM2: product.pricePerM2,
-          total: itemTotal.toString(),
-          artOption: item.artOption || "upload",
-          artFile: item.artFile || null,
-          artCreationFee: artCreationFee.toString(),
-        });
+        
+        orderItemData.artCreationFee = artCreationFee.toString();
+        orderItemsData.push(orderItemData);
       }
 
       // Validar valores enviados pelo cliente

@@ -109,14 +109,22 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                       <h3 className="font-bold text-base truncate" data-testid={`text-cart-item-name-${item.id}`}>
                         {item.productName}
                       </h3>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="px-2 py-1 bg-muted rounded">
-                          {item.width}m × {item.height}m
-                        </span>
-                        <span className="font-medium">
-                          {(item.width * item.height).toFixed(2)}m²
-                        </span>
-                      </div>
+                      {item.pricingType === "fixed" ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="px-2 py-1 bg-muted rounded">
+                            Quantidade: {item.quantity}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="px-2 py-1 bg-muted rounded">
+                            {item.width}m × {item.height}m
+                          </span>
+                          <span className="font-medium">
+                            {((item.width || 0) * (item.height || 0)).toFixed(2)}m²
+                          </span>
+                        </div>
+                      )}
                       {item.artOption === "upload" && item.artFile && (
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Upload className="h-3 w-3" />

@@ -204,6 +204,25 @@ export default function ProductDetail() {
         return;
       }
 
+      // Validar limites máximos
+      if (product.maxWidth && w > parseFloat(product.maxWidth)) {
+        toast({
+          title: "Largura excede o limite",
+          description: `A largura máxima permitida é ${parseFloat(product.maxWidth).toFixed(2)}m.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (product.maxHeight && h > parseFloat(product.maxHeight)) {
+        toast({
+          title: "Altura excede o limite",
+          description: `A altura máxima permitida é ${parseFloat(product.maxHeight).toFixed(2)}m.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (artOption === "upload" && !artFile.trim()) {
         toast({
           title: "Arquivo de arte necessário",
@@ -213,7 +232,17 @@ export default function ProductDetail() {
         return;
       }
 
+      // Validar que pricePerM2 existe e é válido
       const pricePerM2 = parseFloat(product.pricePerM2 || "0");
+      if (isNaN(pricePerM2) || pricePerM2 <= 0) {
+        toast({
+          title: "Erro no preço",
+          description: "Produto com preço inválido. Entre em contato com o suporte.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const calculatedTotal = w * h * pricePerM2;
       
       if (isNaN(calculatedTotal) || !isFinite(calculatedTotal)) {
@@ -368,12 +397,18 @@ export default function ProductDetail() {
                     <div className="space-y-2">
                       <Label htmlFor="width" className="text-sm font-medium">
                         Largura (m)
+                        {product.maxWidth && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (máx. {parseFloat(product.maxWidth).toFixed(2)}m)
+                          </span>
+                        )}
                       </Label>
                       <Input
                         id="width"
                         type="number"
                         step="0.01"
                         min="0"
+                        max={product.maxWidth ? parseFloat(product.maxWidth) : undefined}
                         placeholder="0.00"
                         value={width}
                         onChange={(e) => setWidth(e.target.value)}
@@ -384,12 +419,18 @@ export default function ProductDetail() {
                     <div className="space-y-2">
                       <Label htmlFor="height" className="text-sm font-medium">
                         Altura (m)
+                        {product.maxHeight && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (máx. {parseFloat(product.maxHeight).toFixed(2)}m)
+                          </span>
+                        )}
                       </Label>
                       <Input
                         id="height"
                         type="number"
                         step="0.01"
                         min="0"
+                        max={product.maxHeight ? parseFloat(product.maxHeight) : undefined}
                         placeholder="0.00"
                         value={height}
                         onChange={(e) => setHeight(e.target.value)}

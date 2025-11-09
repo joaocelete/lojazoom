@@ -18,6 +18,8 @@ interface ProductFormData {
   pricingType: string;
   pricePerM2: string;
   fixedPrice: string;
+  maxWidth: string;
+  maxHeight: string;
   imageUrl?: string;
   active: boolean;
 }
@@ -40,6 +42,8 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
     pricingType: product?.pricingType || "per_m2",
     pricePerM2: product?.pricePerM2 || "",
     fixedPrice: product?.fixedPrice || "",
+    maxWidth: product?.maxWidth || "",
+    maxHeight: product?.maxHeight || "",
     imageUrl: product?.imageUrl || "",
     active: product?.active ?? true
   });
@@ -167,7 +171,17 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
             <Label htmlFor="pricingType">Tipo de Precificação</Label>
             <Select
               value={formData.pricingType}
-              onValueChange={(value) => setFormData({ ...formData, pricingType: value })}
+              onValueChange={(value) => {
+                const newFormData = { ...formData, pricingType: value };
+                if (value === "per_m2") {
+                  newFormData.fixedPrice = "";
+                } else {
+                  newFormData.pricePerM2 = "";
+                  newFormData.maxWidth = "";
+                  newFormData.maxHeight = "";
+                }
+                setFormData(newFormData);
+              }}
             >
               <SelectTrigger id="pricingType" data-testid="select-pricing-type">
                 <SelectValue />
@@ -185,20 +199,53 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
           </div>
 
           {formData.pricingType === "per_m2" ? (
-            <div className="space-y-2">
-              <Label htmlFor="pricePerM2">Preço por m² (R$)</Label>
-              <Input
-                id="pricePerM2"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.pricePerM2}
-                onChange={(e) => setFormData({ ...formData, pricePerM2: e.target.value })}
-                placeholder="0.00"
-                required
-                data-testid="input-product-price-m2"
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="pricePerM2">Preço por m² (R$)</Label>
+                <Input
+                  id="pricePerM2"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.pricePerM2}
+                  onChange={(e) => setFormData({ ...formData, pricePerM2: e.target.value })}
+                  placeholder="0.00"
+                  required
+                  data-testid="input-product-price-m2"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxWidth">Largura Máxima (m)</Label>
+                  <Input
+                    id="maxWidth"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.maxWidth}
+                    onChange={(e) => setFormData({ ...formData, maxWidth: e.target.value })}
+                    placeholder="Ex: 5.00"
+                    data-testid="input-product-max-width"
+                  />
+                  <p className="text-xs text-muted-foreground">Deixe vazio para sem limite</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxHeight">Altura Máxima (m)</Label>
+                  <Input
+                    id="maxHeight"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.maxHeight}
+                    onChange={(e) => setFormData({ ...formData, maxHeight: e.target.value })}
+                    placeholder="Ex: 3.00"
+                    data-testid="input-product-max-height"
+                  />
+                  <p className="text-xs text-muted-foreground">Deixe vazio para sem limite</p>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label htmlFor="fixedPrice">Preço Fixo (R$)</Label>
