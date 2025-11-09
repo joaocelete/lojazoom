@@ -146,12 +146,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { 
         items, 
+        deliveryType,
         shippingAddress, 
         paymentMethod, 
         subtotal: clientSubtotal, 
         artCreationFee: clientArtFee,
         shipping: clientShipping, 
-        total: clientTotal 
+        total: clientTotal,
+        shippingCarrier,
+        shippingService,
+        shippingDeliveryDays
       } = req.body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
@@ -218,12 +222,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valores inválidos enviados" });
       }
 
-      // Validar se o frete está dentro de um range razoável (entre R$ 10 e R$ 200)
-      // SuperFrete pode retornar valores variados baseados em CEP e dimensões
-      if (clientShippingNum < 10 || clientShippingNum > 200) {
-        return res.status(400).json({ 
-          message: "Valor de frete inválido. Deve estar entre R$ 10,00 e R$ 200,00" 
-        });
+      // Validar frete baseado no tipo de entrega
+      if (deliveryType === 'pickup') {
+        // Retirada no local: frete deve ser R$ 0,00
+        if (clientShippingNum !== 0) {
+          return res.status(400).json({ 
+            message: "Frete deve ser R$ 0,00 para retirada no local" 
+          });
+        }
+      } else {
+        // Entrega: frete entre R$ 10 e R$ 200
+        if (clientShippingNum < 10 || clientShippingNum > 200) {
+          return res.status(400).json({ 
+            message: "Valor de frete inválido. Deve estar entre R$ 10,00 e R$ 200,00" 
+          });
+        }
       }
 
       // Usar o shipping selecionado pelo cliente
@@ -254,11 +267,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const order = await storage.createOrder({
         userId: req.user!.id,
         status: "pending",
+        deliveryType: deliveryType || "delivery",
         subtotal: calculatedSubtotal.toString(),
         shipping: clientShippingNum.toString(),
         total: calculatedTotal.toString(),
-        shippingAddress,
+        shippingAddress: deliveryType === 'pickup' ? 'Retirada no Local' : shippingAddress,
         paymentMethod,
+        shippingCarrier: deliveryType === 'pickup' ? 'Retirada' : shippingCarrier,
+        shippingService: deliveryType === 'pickup' ? 'Presencial' : shippingService,
+        shippingDeliveryDays: deliveryType === 'pickup' ? 0 : shippingDeliveryDays,
       });
 
       for (const itemData of orderItemsData) {

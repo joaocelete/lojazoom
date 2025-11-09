@@ -29,6 +29,8 @@ export default function Checkout() {
   const { items, subtotal, artCreationFeeTotal, clearCart } = useCart();
   const { toast } = useToast();
   
+  const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('delivery');
+  
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
     number: "",
@@ -46,7 +48,7 @@ export default function Checkout() {
   const [orderId, setOrderId] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  const shipping = selectedShipping?.final_price || 0;
+  const shipping = deliveryType === 'pickup' ? 0 : (selectedShipping?.final_price || 0);
   const total = subtotal + artCreationFeeTotal + shipping;
 
   useEffect(() => {
@@ -142,6 +144,12 @@ export default function Checkout() {
   };
 
   const validateAddress = () => {
+    // Se for retirada, não precisa validar endereço
+    if (deliveryType === 'pickup') {
+      return true;
+    }
+    
+    // Se for entrega, validar endereço completo e frete selecionado
     return (
       shippingAddress.street &&
       shippingAddress.number &&
@@ -155,7 +163,9 @@ export default function Checkout() {
 
   const createOrder = async () => {
     try {
-      const fullAddress = `${shippingAddress.street}, ${shippingAddress.number}${shippingAddress.complement ? ' - ' + shippingAddress.complement : ''}, ${shippingAddress.neighborhood}, ${shippingAddress.city} - ${shippingAddress.state}, CEP: ${shippingAddress.zipCode}`;
+      const fullAddress = deliveryType === 'pickup' 
+        ? 'Retirada no Local - Av. Paulista, 1000, São Paulo - SP'
+        : `${shippingAddress.street}, ${shippingAddress.number}${shippingAddress.complement ? ' - ' + shippingAddress.complement : ''}, ${shippingAddress.neighborhood}, ${shippingAddress.city} - ${shippingAddress.state}, CEP: ${shippingAddress.zipCode}`;
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -172,15 +182,16 @@ export default function Checkout() {
             artFile: item.artFile,
             artCreationFee: item.artCreationFee.toString(),
           })),
+          deliveryType,
           shippingAddress: fullAddress,
           paymentMethod: "mercadopago",
           subtotal: subtotal.toString(),
           artCreationFee: artCreationFeeTotal.toString(),
           shipping: shipping.toString(),
           total: total.toString(),
-          shippingCarrier: selectedShipping?.name,
-          shippingService: selectedShipping?.service,
-          shippingDeliveryDays: selectedShipping?.delivery_time,
+          shippingCarrier: deliveryType === 'pickup' ? 'Retirada' : selectedShipping?.name,
+          shippingService: deliveryType === 'pickup' ? 'Presencial' : selectedShipping?.service,
+          shippingDeliveryDays: deliveryType === 'pickup' ? 0 : selectedShipping?.delivery_time,
         }),
       });
 
@@ -198,9 +209,13 @@ export default function Checkout() {
 
   const onSubmit = async ({ selectedPaymentMethod, formData }: any) => {
     if (!validateAddress()) {
+      const message = deliveryType === 'pickup' 
+        ? "Erro ao validar dados do pedido"
+        : "Preencha o endereço e escolha um método de envio";
+      
       toast({
         title: "Dados incompletos",
-        description: "Preencha o endereço e escolha um método de envio",
+        description: message,
         variant: "destructive",
       });
       return new Promise((_, reject) => reject());
@@ -354,16 +369,79 @@ export default function Checkout() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Coluna Principal - Endereço e Pagamento */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 1. Endereço de Entrega */}
+            {/* 0. Escolher Tipo de Entrega */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Endereço de Entrega
+                  <Truck className="h-5 w-5" />
+                  Tipo de Entrega
                 </CardTitle>
-                <CardDescription>Onde você quer receber seu pedido?</CardDescription>
+                <CardDescription>Escolha como deseja receber seu pedido</CardDescription>
               </CardHeader>
               <CardContent>
+                <RadioGroup 
+                  value={deliveryType} 
+                  onValueChange={(value) => setDeliveryType(value as 'pickup' | 'delivery')}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <RadioGroupItem value="delivery" id="delivery" className="peer sr-only" />
+                    <Label
+                      htmlFor="delivery"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover-elevate cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+                      data-testid="option-delivery"
+                    >
+                      <Truck className="mb-3 h-6 w-6" />
+                      <div className="text-center">
+                        <div className="font-semibold">Entrega no Endereço</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Receba em casa com frete calculado
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="pickup" id="pickup" className="peer sr-only" />
+                    <Label
+                      htmlFor="pickup"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover-elevate cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+                      data-testid="option-pickup"
+                    >
+                      <Package className="mb-3 h-6 w-6" />
+                      <div className="text-center">
+                        <div className="font-semibold">Retirada no Local</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Grátis - Retire em nossa loja
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {deliveryType === 'pickup' && (
+                  <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+                    <p className="text-sm font-semibold mb-1">📍 Endereço para Retirada:</p>
+                    <p className="text-sm">Av. Paulista, 1000 - Bela Vista</p>
+                    <p className="text-sm">São Paulo - SP, CEP: 01310-100</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Horário: Segunda a Sexta, das 9h às 18h
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 1. Endereço de Entrega */}
+            {deliveryType === 'delivery' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Endereço de Entrega
+                  </CardTitle>
+                  <CardDescription>Onde você quer receber seu pedido?</CardDescription>
+                </CardHeader>
+                <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <Label htmlFor="zipCode">CEP *</Label>
@@ -440,8 +518,10 @@ export default function Checkout() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {/* 2. Método de Envio */}
+            {deliveryType === 'delivery' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -518,6 +598,7 @@ export default function Checkout() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 3. Pagamento - DESTAQUE */}
             <Card className="border-2 border-primary/20">
