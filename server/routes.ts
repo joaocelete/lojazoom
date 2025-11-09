@@ -6,6 +6,8 @@ import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthC
 import { insertUserSchema, insertProductSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 import { z } from "zod";
 import { MercadoPagoConfig, Payment, MerchantOrder } from "mercadopago";
+import { uploadProductImage, uploadArtwork } from "./upload";
+import express from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cookieParser());
@@ -623,6 +625,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     res.json({ publicKey });
   });
+
+  // Upload de imagem de produto (apenas admin)
+  app.post("/api/upload/product-image", authenticateToken, requireAdmin, uploadProductImage.single("image"), (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhuma imagem enviada" });
+      }
+
+      // Retornar URL relativa do arquivo
+      const imageUrl = `/uploads/products/${req.file.filename}`;
+      res.json({ imageUrl, filename: req.file.filename });
+    } catch (error) {
+      console.error("Erro ao fazer upload de imagem:", error);
+      res.status(500).json({ message: "Erro ao fazer upload da imagem" });
+    }
+  });
+
+  // Upload de arquivo de arte (cliente logado)
+  app.post("/api/upload/artwork", authenticateToken, uploadArtwork.single("artwork"), (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+
+      // Retornar URL relativa do arquivo
+      const artworkUrl = `/uploads/artwork/${req.file.filename}`;
+      res.json({ 
+        artworkUrl, 
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+    } catch (error) {
+      console.error("Erro ao fazer upload de arquivo de arte:", error);
+      res.status(500).json({ message: "Erro ao fazer upload do arquivo" });
+    }
+  });
+
+  // Servir arquivos estáticos de upload
+  app.use('/uploads', express.static('uploads'));
 
   // Calcular frete com Melhor Envio
   app.post("/api/shipping/calculate", async (req, res) => {
