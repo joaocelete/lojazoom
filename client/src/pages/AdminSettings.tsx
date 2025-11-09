@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,19 @@ export default function AdminSettings() {
     return setting?.value || "";
   };
 
-  const [melhorEnvioToken, setMelhorEnvioToken] = useState(getSettingValue("MELHOR_ENVIO_TOKEN"));
-  const [melhorEnvioEnv, setMelhorEnvioEnv] = useState(getSettingValue("MELHOR_ENVIO_ENV") || "sandbox");
+  const [melhorEnvioToken, setMelhorEnvioToken] = useState("");
+  const [melhorEnvioEnv, setMelhorEnvioEnv] = useState("sandbox");
+
+  // Sincronizar state com dados carregados
+  useEffect(() => {
+    if (data?.settings) {
+      const token = getSettingValue("MELHOR_ENVIO_TOKEN");
+      const env = getSettingValue("MELHOR_ENVIO_ENV");
+      
+      setMelhorEnvioToken(token);
+      setMelhorEnvioEnv(env || "sandbox");
+    }
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: async (settingsToSave: { key: string; value: string }[]) => {

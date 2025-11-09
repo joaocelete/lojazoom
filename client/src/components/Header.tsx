@@ -99,10 +99,16 @@ export default function Header({ cartItemCount = 0, onCartClick, onLoginClick }:
                     Meu Perfil
                   </DropdownMenuItem>
                   {isAdmin && (
-                    <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Painel Admin
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Painel Admin
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/admin/settings")} data-testid="menu-admin-settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Configurações
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
                     <LogOut className="mr-2 h-4 w-4" />
