@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useRef } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeFormPayload } from "@/lib/formUtils";
 
 import type { Product } from "@shared/schema";
 
@@ -117,7 +118,8 @@ export default function AdminProductForm({ product, onSave, onCancel }: AdminPro
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave?.(formData);
+    const normalizedData = normalizeFormPayload(formData);
+    onSave?.(normalizedData as ProductFormData);
   };
 
   return (
