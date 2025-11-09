@@ -268,7 +268,7 @@ export default function Checkout() {
           title: "PIX gerado!",
           description: "Escaneie o QR Code ou copie o código",
         });
-        return;
+        return new Promise((resolve) => resolve());
       }
 
       if (result.ticket_url) {
@@ -283,7 +283,7 @@ export default function Checkout() {
           queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
           setLocation("/");
         }, 2000);
-        return;
+        return new Promise((resolve) => resolve());
       }
 
       if (result.payment) {
@@ -298,15 +298,19 @@ export default function Checkout() {
           clearCart();
           queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
           setTimeout(() => setLocation("/"), 2000);
+          return new Promise((resolve) => resolve());
         } else if (status === "pending") {
           toast({
             title: "Pagamento pendente",
             description: "Aguardando confirmação do pagamento.",
           });
+          return new Promise((resolve) => resolve());
         } else {
           throw new Error(result.payment.status_detail || "Pagamento não aprovado");
         }
       }
+
+      return new Promise((resolve) => resolve());
 
     } catch (error: any) {
       console.error("Erro no pagamento:", error);
@@ -315,7 +319,7 @@ export default function Checkout() {
         description: error.message || "Tente novamente",
         variant: "destructive",
       });
-      return new Promise((_, reject) => reject());
+      return new Promise((_, reject) => reject(error));
     }
   };
 
