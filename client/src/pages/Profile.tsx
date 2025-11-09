@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -18,17 +18,35 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    fullName: user?.fullName || "",
-    cpf: user?.cpf || "",
-    phone: user?.phone || "",
-    street: user?.street || "",
-    number: user?.number || "",
-    complement: user?.complement || "",
-    neighborhood: user?.neighborhood || "",
-    city: user?.city || "",
-    state: user?.state || "",
-    zipCode: user?.zipCode || "",
+    fullName: "",
+    cpf: "",
+    phone: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    zipCode: "",
   });
+
+  // Preencher formData quando o user carregar
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        fullName: user.fullName || "",
+        cpf: user.cpf || "",
+        phone: user.phone || "",
+        street: user.street || "",
+        number: user.number || "",
+        complement: user.complement || "",
+        neighborhood: user.neighborhood || "",
+        city: user.city || "",
+        state: user.state || "",
+        zipCode: user.zipCode || "",
+      });
+    }
+  }, [user]);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -92,8 +110,9 @@ export default function Profile() {
         description: "Suas informações foram salvas com sucesso",
       });
 
-      // Recarregar dados do usuário
-      window.location.reload();
+      // Invalidar cache do AuthContext para recarregar dados do usuário
+      const queryClient = await import("@/lib/queryClient").then(m => m.queryClient);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     } catch (error: any) {
       toast({
         title: "Erro ao atualizar",
