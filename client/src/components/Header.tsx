@@ -94,6 +94,10 @@ export default function Header({ cartItemCount = 0, onCartClick, onLoginClick }:
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Meu Perfil
+                  </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
                       <Settings className="mr-2 h-4 w-4" />
