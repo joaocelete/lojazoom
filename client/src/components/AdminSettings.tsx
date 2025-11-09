@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Store, 
@@ -16,13 +19,26 @@ import {
   CreditCard, 
   Truck,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Package
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { Setting } from "@shared/schema";
 
 export default function AdminSettings() {
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
+
+  // Buscar configurações do banco de dados
+  const { data, isLoading } = useQuery<{ settings: Setting[] }>({
+    queryKey: ["/api/settings"],
+  });
+
+  const settings = data?.settings || [];
+  
+  const getSettingValue = (key: string): string => {
+    const setting = settings.find(s => s.key === key);
+    return setting?.value || "";
+  };
 
   // Configurações da empresa
   const [companySettings, setCompanySettings] = useState({
@@ -42,18 +58,51 @@ export default function AdminSettings() {
     description: "Especialistas em banners, adesivos e lonas de alta qualidade para sua empresa.",
   });
 
-  const handleSave = async () => {
-    setSaving(true);
-    
-    // Simulação de salvamento (você pode adicionar uma API se necessário)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Configurações salvas!",
-      description: "As alterações foram aplicadas com sucesso.",
-    });
-    
-    setSaving(false);
+  // Configurações de API
+  const [melhorEnvioToken, setMelhorEnvioToken] = useState("");
+  const [melhorEnvioEnv, setMelhorEnvioEnv] = useState("sandbox");
+
+  // Sincronizar state com dados carregados
+  useEffect(() => {
+    if (data?.settings) {
+      const token = getSettingValue("MELHOR_ENVIO_TOKEN");
+      const env = getSettingValue("MELHOR_ENVIO_ENV");
+      
+      setMelhorEnvioToken(token);
+      setMelhorEnvioEnv(env || "sandbox");
+    }
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (settingsToSave: { key: string; value: string }[]) => {
+      return apiRequest("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ settings: settingsToSave }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({
+        title: "Configurações salvas!",
+        description: "As configurações de API foram atualizadas com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message || "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    const settingsToSave = [
+      { key: "MELHOR_ENVIO_TOKEN", value: melhorEnvioToken },
+      { key: "MELHOR_ENVIO_ENV", value: melhorEnvioEnv },
+    ];
+
+    saveMutation.mutate(settingsToSave);
   };
 
   return (
@@ -222,6 +271,75 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
+      {/* Configuração de APIs */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            Configuração da API Melhor Envio
+          </CardTitle>
+          <CardDescription>
+            Configure o token de acesso para cálculo de frete em tempo real
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="melhor-envio-token">Token de Acesso</Label>
+            <Input
+              id="melhor-envio-token"
+              type="password"
+              value={melhorEnvioToken}
+              onChange={(e) => setMelhorEnvioToken(e.target.value)}
+              placeholder="Bearer seu-token-aqui..."
+              data-testid="input-melhor-envio-token"
+            />
+            <p className="text-xs text-muted-foreground">
+              Para obter seu token, acesse:{" "}
+              <a 
+                href="https://sandbox.melhorenvio.com.br/painel/gerenciar/tokens" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Painel Melhor Envio → Tokens
+              </a>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="melhor-envio-env">Ambiente</Label>
+            <Select value={melhorEnvioEnv} onValueChange={setMelhorEnvioEnv}>
+              <SelectTrigger id="melhor-envio-env" data-testid="select-melhor-envio-env">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                <SelectItem value="production">Produção</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Use <strong>Sandbox</strong> para testes. Mude para <strong>Produção</strong> quando for ao ar.
+            </p>
+          </div>
+
+          {melhorEnvioToken && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                ✅ Token configurado! O sistema está usando o Melhor Envio para calcular fretes.
+              </p>
+            </div>
+          )}
+
+          {!melhorEnvioToken && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ Nenhum token configurado. O sistema usará fallback (preços estimados por distância).
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Integrações */}
       <Card>
         <CardHeader>
@@ -264,18 +382,11 @@ export default function AdminSettings() {
                   </p>
                 </div>
               </div>
-              <Badge variant="default" className="bg-green-600">
+              <Badge variant="default" className={melhorEnvioToken ? "bg-green-600" : "bg-yellow-600"}>
                 <CheckCircle2 className="h-3 w-3 mr-1" />
-                Ativo
+                {melhorEnvioToken ? "Ativo" : "Fallback"}
               </Badge>
             </div>
-          </div>
-
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Dica:</strong> Configure as chaves de API nas variáveis de ambiente 
-              (MERCADOPAGO_ACCESS_TOKEN, MELHOR_ENVIO_TOKEN) para ativar as integrações.
-            </p>
           </div>
         </CardContent>
       </Card>
@@ -312,15 +423,15 @@ export default function AdminSettings() {
         <Button
           size="lg"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saveMutation.isPending}
           data-testid="button-save-settings"
         >
-          {saving ? (
+          {saveMutation.isPending ? (
             <>Salvando...</>
           ) : (
             <>
               <Save className="h-4 w-4 mr-2" />
-              Salvar Configurações
+              Salvar Configurações de API
             </>
           )}
         </Button>

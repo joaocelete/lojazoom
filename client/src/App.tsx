@@ -13,7 +13,6 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
 import Admin from "@/pages/Admin";
-import AdminSettings from "@/pages/AdminSettings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,7 +25,6 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/profile" component={Profile} />
-      <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
