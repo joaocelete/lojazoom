@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Search, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Package, Search, Eye, ChevronDown, ChevronUp, Download, FileText } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, OrderItem } from "@shared/schema";
@@ -237,8 +237,8 @@ export default function AdminOrdersManager() {
                             className="p-3 bg-muted/50 rounded-md"
                             data-testid={`order-item-${idx}`}
                           >
-                            <div className="flex justify-between items-start">
-                              <div>
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex-1">
                                 <p className="font-medium">{item.productName}</p>
                                 <p className="text-sm text-muted-foreground">
                                   Dimensões: {item.width} × {item.height} m ({parseFloat(item.area).toFixed(2)} m²)
@@ -250,6 +250,53 @@ export default function AdminOrdersManager() {
                                   <p className="text-sm text-muted-foreground">
                                     + Criação de arte: R$ {parseFloat(item.artCreationFee).toFixed(2)}
                                   </p>
+                                )}
+                                
+                                {/* Mostrar arquivo de arte se houver */}
+                                {item.artFile && (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-primary" />
+                                    <span className="text-xs text-muted-foreground">
+                                      Arquivo enviado
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs gap-1"
+                                      onClick={async () => {
+                                        try {
+                                          const filename = item.artFile!.split('/').pop();
+                                          const downloadUrl = `/api/orders/${order.id}/artwork/${filename}/download`;
+                                          
+                                          // Tentar fazer o download
+                                          const response = await fetch(downloadUrl, { credentials: 'include' });
+                                          
+                                          if (!response.ok) {
+                                            const error = await response.json();
+                                            toast({
+                                              title: "Erro ao baixar arquivo",
+                                              description: error.message || "Não foi possível baixar o arquivo.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          
+                                          // Se sucesso, abrir em nova aba
+                                          window.open(downloadUrl, '_blank');
+                                        } catch (error) {
+                                          toast({
+                                            title: "Erro ao baixar arquivo",
+                                            description: "Ocorreu um erro ao tentar baixar o arquivo.",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                      data-testid={`button-download-artwork-${idx}`}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                      Baixar
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                               <div className="text-right">

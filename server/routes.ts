@@ -729,8 +729,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Servir arquivos estáticos de upload
-  app.use('/uploads', express.static('uploads'));
+  // Download de arquivo de arte (apenas admin)
+  app.get("/api/orders/:orderId/artwork/:filename/download", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, filename } = req.params;
+      const path = require('path');
+      const fs = require('fs');
+      
+      // Validar formato do filename (apenas caracteres seguros)
+      const safeFilenamePattern = /^[a-zA-Z0-9._-]+$/;
+      if (!safeFilenamePattern.test(filename)) {
+        return res.status(400).json({ message: "Nome de arquivo inválido" });
+      }
+      
+      // Verificar se o arquivo pertence a um item deste pedido
+      const orderDetails = await storage.getOrder(orderId);
+      if (!orderDetails) {
+        return res.status(404).json({ message: "Pedido não encontrado" });
+      }
+
+      const items = await storage.getOrderItems(orderId);
+      const hasFile = items.some(item => item.artFile && item.artFile.includes(filename));
+      
+      if (!hasFile) {
+        return res.status(404).json({ message: "Arquivo não encontrado neste pedido" });
+      }
+
+      // Normalizar caminho do arquivo para prevenir path traversal
+      const uploadsDir = path.resolve('uploads/artwork');
+      const filePath = path.resolve(uploadsDir, filename);
+      
+      // Validar que o caminho relativo não sai do diretório permitido
+      const relativePath = path.relative(uploadsDir, filePath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Verificar se o arquivo existe
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Arquivo não encontrado no servidor" });
+      }
+
+      // Enviar arquivo para download
+      res.download(filePath);
+    } catch (error) {
+      console.error("Erro ao fazer download do arquivo:", error);
+      res.status(500).json({ message: "Erro ao baixar o arquivo" });
+    }
+  });
+
+  // Servir arquivos estáticos de upload (apenas imagens de produtos)
+  app.use('/uploads/products', express.static('uploads/products'));
 
   // Calcular frete com Melhor Envio
   app.post("/api/shipping/calculate", async (req, res) => {
