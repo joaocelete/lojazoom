@@ -12,6 +12,7 @@ import type { Product } from "@shared/schema";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
+import ProductReviews from "@/components/ProductReviews";
 import useEmblaCarousel from "embla-carousel-react";
 
 export default function ProductDetail() {
@@ -52,7 +53,12 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${id}`],
   });
   
+  const { data: authData } = useQuery<{user: any}>({
+    queryKey: ["/api/auth/me"],
+  });
+  
   const product = data?.product;
+  const isAuthenticated = !!authData?.user;
 
   const ART_CREATION_FEE = 35.00;
 
@@ -686,6 +692,10 @@ export default function ProductDetail() {
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12">
+          <ProductReviews productId={id!} isAuthenticated={isAuthenticated} />
         </div>
         </div>
       </main>
