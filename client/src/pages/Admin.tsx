@@ -21,6 +21,7 @@ import AdminDashboard from "@/components/AdminDashboard";
 import AdminProductsManager from "@/components/AdminProductsManager";
 import AdminOrdersManager from "@/components/AdminOrdersManager";
 import AdminUsersManager from "@/components/AdminUsersManager";
+import AdminSettings from "@/components/AdminSettings";
 
 function AppSidebar({ currentPage, onNavigate }: { currentPage: string; onNavigate: (page: string) => void }) {
   const { logout } = useAuth();
@@ -101,53 +102,7 @@ export default function Admin() {
         return <AdminUsersManager />;
       
       case "settings":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-muted/50 rounded-md">
-                  <h3 className="font-semibold mb-2">Integrações</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Configure as integrações de pagamento e frete
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 bg-card rounded-md border">
-                      <div>
-                        <p className="font-medium">Mercado Pago</p>
-                        <p className="text-xs text-muted-foreground">Processamento de pagamentos</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        Configure via Secrets
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-card rounded-md border">
-                      <div>
-                        <p className="font-medium">SuperFrete</p>
-                        <p className="text-xs text-muted-foreground">Cálculo de frete</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        Configure via Secrets
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-muted/50 rounded-md">
-                  <h3 className="font-semibold mb-2">Sistema</h3>
-                  <p className="text-sm text-muted-foreground">
-                    PrintBrasil E-commerce v1.0.0
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Desenvolvido com React, Node.js, TypeScript e PostgreSQL
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
+        return <AdminSettings />;
       
       default:
         return <AdminDashboard />;
