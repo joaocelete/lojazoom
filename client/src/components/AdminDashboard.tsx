@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, ShoppingCart, Users, Package, TrendingUp, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, ShoppingCart, Users, Package, TrendingUp, Clock, ArrowUpRight, AlertCircle } from "lucide-react";
 import type { Order } from "@shared/schema";
 
 interface DashboardStats {
@@ -59,26 +60,45 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground mt-1">
+            Visão geral do seu negócio
+          </p>
+        </div>
+        <Badge variant="default" className="text-sm px-3 py-1">
+          <Clock className="h-3 w-3 mr-1" />
+          Atualizado agora
+        </Badge>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card data-testid="card-revenue">
+        <Card data-testid="card-revenue" className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-green-100 rounded-md">
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-revenue">
+            <div className="text-2xl font-bold text-green-600" data-testid="text-revenue">
               R$ {stats.totalRevenue.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <ArrowUpRight className="h-3 w-3 text-green-600" />
               {stats.totalOrders} pedidos realizados
             </p>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-orders">
+        <Card data-testid="card-orders" className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-blue-100 rounded-md">
+              <ShoppingCart className="h-4 w-4 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-orders">
@@ -90,10 +110,12 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-customers">
+        <Card data-testid="card-customers" className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-purple-100 rounded-md">
+              <Users className="h-4 w-4 text-purple-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-customers">
@@ -105,10 +127,12 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-products">
+        <Card data-testid="card-products" className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Produtos</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-yellow-100 rounded-md">
+              <Package className="h-4 w-4 text-yellow-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-products">
