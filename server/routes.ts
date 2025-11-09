@@ -736,10 +736,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/shipping/calculate", async (req, res) => {
     try {
       const { destinationCEP, packageDetails } = req.body;
-      const token = process.env.MELHOR_ENVIO_TOKEN;
+      
+      // Buscar configurações do banco de dados
+      const tokenSetting = await storage.getSetting("MELHOR_ENVIO_TOKEN");
+      const envSetting = await storage.getSetting("MELHOR_ENVIO_ENV");
+      
+      // Fallback para env vars se não houver no banco
+      const token = tokenSetting?.value || process.env.MELHOR_ENVIO_TOKEN;
+      const environment = envSetting?.value || process.env.MELHOR_ENVIO_ENV || 'sandbox';
 
       if (!token) {
-        return res.status(500).json({ message: "Token do Melhor Envio não configurado" });
+        return res.status(500).json({ 
+          message: "Token do Melhor Envio não configurado. Configure em Admin > Configurações." 
+        });
       }
 
       if (!destinationCEP) {
@@ -758,10 +767,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weight: 0.5   // kg - peso médio
       };
 
-      console.log("Calculando frete Melhor Envio:", { from: originCEP, to: destinationCEP, package: pkg });
+      console.log("Calculando frete Melhor Envio:", { from: originCEP, to: destinationCEP, package: pkg, environment });
 
       // Usar sandbox ou produção conforme o ambiente
-      const apiUrl = process.env.MELHOR_ENVIO_ENV === 'production' 
+      const apiUrl = environment === 'production' 
         ? "https://www.melhorenvio.com.br/api/v2/me/shipment/calculate"
         : "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate";
 
