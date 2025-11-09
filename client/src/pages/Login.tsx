@@ -34,7 +34,7 @@ export default function Login() {
   return (
     <LoginForm
       onLogin={handleLogin}
-      onRegisterClick={() => console.log("Navigate to register")}
+      onRegisterClick={() => setLocation("/register")}
     />
   );
 }

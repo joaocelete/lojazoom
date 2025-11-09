@@ -3,11 +3,27 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
+interface RegisterData {
+  email: string;
+  password: string;
+  name: string;
+  fullName?: string;
+  cpf?: string;
+  phone?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -38,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async ({ email, password, name }: { email: string; password: string; name: string }) => {
-      const res = await apiRequest("POST", "/api/auth/register", { email, password, name, role: "client" });
+    mutationFn: async (data: RegisterData) => {
+      const res = await apiRequest("POST", "/api/auth/register", { ...data, role: "client" });
       return res.json();
     },
     onSuccess: () => {
@@ -68,8 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login: async (email, password) => {
           await loginMutation.mutateAsync({ email, password });
         },
-        register: async (email, password, name) => {
-          await registerMutation.mutateAsync({ email, password, name });
+        register: async (data) => {
+          await registerMutation.mutateAsync(data);
         },
         logout: async () => {
           await logoutMutation.mutateAsync();
