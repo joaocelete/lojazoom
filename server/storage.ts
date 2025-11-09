@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, products, orders, orderItems, type User, type InsertUser, type Product, type InsertProduct, type Order, type InsertOrder, type OrderItem, type InsertOrderItem } from "@shared/schema";
+import { users, products, orders, orderItems, settings, type User, type InsertUser, type Product, type InsertProduct, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Setting } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -38,6 +38,11 @@ export interface IStorage {
     recentOrders: Order[];
     ordersByStatus: Record<string, number>;
   }>;
+  
+  // Settings
+  getSettings(): Promise<Setting[]>;
+  getSetting(key: string): Promise<Setting | undefined>;
+  setSetting(key: string, value: string): Promise<Setting>;
 }
 
 export class DbStorage implements IStorage {
@@ -164,6 +169,33 @@ export class DbStorage implements IStorage {
       recentOrders,
       ordersByStatus,
     };
+  }
+
+  // Settings
+  async getSettings(): Promise<Setting[]> {
+    return db.select().from(settings);
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const result = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+    return result[0];
+  }
+
+  async setSetting(key: string, value: string): Promise<Setting> {
+    const existing = await this.getSetting(key);
+    
+    if (existing) {
+      const result = await db.update(settings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(settings.key, key))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(settings)
+        .values({ key, value })
+        .returning();
+      return result[0];
+    }
   }
 }
 

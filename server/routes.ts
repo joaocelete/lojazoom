@@ -417,6 +417,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Settings routes (Admin only)
+  app.get("/api/settings", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allSettings = await storage.getSettings();
+      res.json({ settings: allSettings });
+    } catch (error) {
+      console.error("Erro ao buscar configurações:", error);
+      res.status(500).json({ message: "Erro ao buscar configurações" });
+    }
+  });
+
+  app.put("/api/settings", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const settings = req.body.settings;
+      
+      if (!Array.isArray(settings)) {
+        return res.status(400).json({ message: "Formato inválido. Esperado array de settings." });
+      }
+
+      for (const setting of settings) {
+        await storage.setSetting(setting.key, setting.value);
+      }
+
+      const updatedSettings = await storage.getSettings();
+      res.json({ settings: updatedSettings });
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+      res.status(500).json({ message: "Erro ao salvar configurações" });
+    }
+  });
+
   // Mercado Pago - Checkout Transparente
   const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!mpAccessToken) {
