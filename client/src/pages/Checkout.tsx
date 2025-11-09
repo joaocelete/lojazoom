@@ -47,6 +47,7 @@ export default function Checkout() {
   const [mpInitialized, setMpInitialized] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [pixData, setPixData] = useState<{ qr_code: string; qr_code_base64: string } | null>(null);
 
   const shipping = deliveryType === 'pickup' ? 0 : (selectedShipping?.final_price || 0);
   const total = subtotal + artCreationFeeTotal + shipping;
@@ -264,11 +265,15 @@ export default function Checkout() {
       }
 
       if (result.qr_code) {
-        toast({
-          title: "PIX gerado!",
-          description: "Escaneie o QR Code ou copie o código",
+        setPixData({
+          qr_code: result.qr_code,
+          qr_code_base64: result.qr_code_base64,
         });
-        return new Promise((resolve) => resolve());
+        toast({
+          title: "PIX gerado com sucesso!",
+          description: "Escaneie o QR Code abaixo para pagar",
+        });
+        return Promise.resolve();
       }
 
       if (result.ticket_url) {
@@ -283,7 +288,7 @@ export default function Checkout() {
           queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
           setLocation("/");
         }, 2000);
-        return new Promise((resolve) => resolve());
+        return Promise.resolve();
       }
 
       if (result.payment) {
@@ -298,19 +303,19 @@ export default function Checkout() {
           clearCart();
           queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
           setTimeout(() => setLocation("/"), 2000);
-          return new Promise((resolve) => resolve());
+          return Promise.resolve();
         } else if (status === "pending") {
           toast({
             title: "Pagamento pendente",
             description: "Aguardando confirmação do pagamento.",
           });
-          return new Promise((resolve) => resolve());
+          return Promise.resolve();
         } else {
           throw new Error(result.payment.status_detail || "Pagamento não aprovado");
         }
       }
 
-      return new Promise((resolve) => resolve());
+      return Promise.resolve();
 
     } catch (error: any) {
       console.error("Erro no pagamento:", error);
@@ -658,6 +663,64 @@ export default function Checkout() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 4. QR Code PIX - Exibir após gerar */}
+            {pixData && (
+              <Card className="border-2 border-green-500/50 bg-green-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="h-6 w-6" />
+                    PIX Gerado com Sucesso!
+                  </CardTitle>
+                  <CardDescription>
+                    Escaneie o QR Code abaixo ou copie o código PIX para pagar
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* QR Code Image */}
+                  <div className="flex justify-center bg-white p-6 rounded-lg">
+                    <img
+                      src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                      alt="QR Code PIX"
+                      className="w-64 h-64"
+                      data-testid="img-qr-code"
+                    />
+                  </div>
+
+                  {/* Código PIX para copiar */}
+                  <div className="space-y-2">
+                    <Label>Código PIX (Copiar e Colar)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={pixData.qr_code}
+                        readOnly
+                        className="font-mono text-xs"
+                        data-testid="input-pix-code"
+                      />
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(pixData.qr_code);
+                          toast({
+                            title: "Copiado!",
+                            description: "Código PIX copiado para área de transferência",
+                          });
+                        }}
+                        data-testid="button-copy-pix"
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      ⏱️ <strong>Importante:</strong> O pagamento será confirmado automaticamente após a 
+                      confirmação do PIX pelo seu banco. Isso pode levar alguns segundos.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Coluna Lateral - Resumo do Pedido (Sticky no desktop) */}

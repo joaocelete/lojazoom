@@ -493,13 +493,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         payment_method_id: "pix",
         payer: {
           email: payer.email,
-          identification: {
-            type: payer.identification.type,
-            number: payer.identification.number,
-          },
         },
         external_reference: orderId,
       };
+
+      // Adicionar identificação se fornecida
+      if (payer.identification?.type && payer.identification?.number) {
+        paymentData.payer.identification = {
+          type: payer.identification.type,
+          number: payer.identification.number,
+        };
+      }
 
       // Adicionar notification_url apenas em produção com domínio válido
       const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
@@ -549,13 +553,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         payment_method_id: "bolbradesco", // Boleto Bradesco
         payer: {
           email: payer.email,
-          identification: {
-            type: payer.identification.type,
-            number: payer.identification.number,
-          },
         },
         external_reference: orderId,
       };
+
+      // Adicionar identificação se fornecida
+      if (payer.identification?.type && payer.identification?.number) {
+        paymentData.payer.identification = {
+          type: payer.identification.type,
+          number: payer.identification.number,
+        };
+      }
 
       // Adicionar notification_url apenas em produção com domínio válido
       const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
