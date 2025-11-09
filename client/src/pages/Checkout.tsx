@@ -652,32 +652,53 @@ export default function Checkout() {
                     </p>
                   </div>
                 ) : (
-                  <div id="payment-brick-container" className="min-h-[400px]">
-                    <Payment
-                      initialization={{
-                        amount: total,
-                        payer: {
-                          email: user?.email || '',
-                        }
-                      }}
-                      customization={{
-                        paymentMethods: {
-                          creditCard: 'all',
-                          debitCard: 'all',
-                          ticket: 'all',
-                          bankTransfer: 'all',
-                        },
-                        visual: {
-                          style: {
-                            theme: 'default'
+                  <>
+                    {/* Instruções para teste */}
+                    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                        💳 Testando com cartão? Use estes dados:
+                      </h4>
+                      <div className="text-sm text-yellow-700 space-y-1">
+                        <p><strong>Nome do titular:</strong> APRO (para pagamento aprovado)</p>
+                        <p><strong>Número do cartão:</strong> 5031 7557 3453 0604</p>
+                        <p><strong>CPF:</strong> 123.456.789-09</p>
+                        <p><strong>Validade:</strong> 11/25</p>
+                        <p><strong>CVV:</strong> 123</p>
+                        <p className="text-xs mt-2 text-yellow-600">
+                          ⚠️ Para testar rejeições, use outros nomes: OTHE (erro geral), FUND (saldo insuficiente), SECU (código inválido)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div id="payment-brick-container" className="min-h-[400px]">
+                      <Payment
+                        initialization={{
+                          amount: total,
+                          payer: {
+                            email: user?.email || '',
+                            firstName: user?.fullName?.split(' ')[0] || '',
+                            lastName: user?.fullName?.split(' ').slice(1).join(' ') || '',
                           }
-                        }
-                      }}
-                      onSubmit={onSubmit}
-                      onReady={onReady}
-                      onError={onError}
-                    />
-                  </div>
+                        }}
+                        customization={{
+                          paymentMethods: {
+                            creditCard: 'all',
+                            debitCard: 'all',
+                            ticket: 'all',
+                            bankTransfer: 'all',
+                          },
+                          visual: {
+                            style: {
+                              theme: 'default'
+                            }
+                          }
+                        }}
+                        onSubmit={onSubmit}
+                        onReady={onReady}
+                        onError={onError}
+                      />
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
