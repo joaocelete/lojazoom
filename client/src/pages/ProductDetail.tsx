@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ShoppingCart, Ruler, Upload, Palette, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { ShoppingCart, Ruler, Upload, Palette, ArrowLeft, FileText, CheckCircle2, X } from "lucide-react";
+import { useState, useRef } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
@@ -23,7 +23,10 @@ export default function ProductDetail() {
   const [height, setHeight] = useState("");
   const [artOption, setArtOption] = useState<"upload" | "create">("upload");
   const [artFile, setArtFile] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const artFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery<{product: Product}>({
     queryKey: [`/api/products/${id}`],
@@ -49,6 +52,87 @@ export default function ProductDetail() {
 
   const { productTotal, artFee, total } = calculateTotal();
   const area = (parseFloat(width) || 0) * (parseFloat(height) || 0);
+
+  const handleArtFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar extensão do arquivo
+    const allowedExtensions = [".pdf", ".cdr"];
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!hasValidExtension) {
+      toast({
+        title: "Formato inválido",
+        description: "Use apenas arquivos PDF ou CDR",
+        variant: "destructive",
+      });
+      if (artFileInputRef.current) {
+        artFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    // Validar tamanho (20MB max)
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "O arquivo deve ter no máximo 20MB",
+        variant: "destructive",
+      });
+      if (artFileInputRef.current) {
+        artFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("artwork", file);
+
+      const response = await fetch("/api/upload/artwork", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao fazer upload");
+      }
+
+      const data = await response.json();
+      setArtFile(data.artworkUrl);
+      setUploadedFileName(data.originalName);
+
+      toast({
+        title: "Upload concluído!",
+        description: `Arquivo ${data.originalName} enviado com sucesso`,
+      });
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error);
+      toast({
+        title: "Erro no upload",
+        description: "Não foi possível enviar o arquivo de arte",
+        variant: "destructive",
+      });
+      if (artFileInputRef.current) {
+        artFileInputRef.current.value = "";
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveArtFile = () => {
+    setArtFile("");
+    setUploadedFileName("");
+    if (artFileInputRef.current) {
+      artFileInputRef.current.value = "";
+    }
+  };
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -249,17 +333,70 @@ export default function ProductDetail() {
                         Enviar arte pronta
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        PDF, CDR ou AI - Sem custo adicional
+                        PDF ou CDR - Sem custo adicional
                       </p>
                       {artOption === "upload" && (
-                        <Input
-                          type="text"
-                          placeholder="Nome do arquivo (ex: arte.pdf)"
-                          value={artFile}
-                          onChange={(e) => setArtFile(e.target.value)}
-                          className="mt-3 h-10"
-                          data-testid="input-art-file"
-                        />
+                        <div className="mt-3 space-y-2">
+                          {artFile && uploadedFileName ? (
+                            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <div>
+                                  <p className="text-sm font-medium text-green-800">
+                                    {uploadedFileName}
+                                  </p>
+                                  <p className="text-xs text-green-600">
+                                    Arquivo enviado com sucesso
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleRemoveArtFile}
+                                data-testid="button-remove-artwork"
+                              >
+                                <X className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => artFileInputRef.current?.click()}
+                                disabled={uploading}
+                                data-testid="button-upload-artwork"
+                              >
+                                {uploading ? (
+                                  <>
+                                    <Upload className="h-4 w-4 mr-2 animate-pulse" />
+                                    Enviando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Selecionar arquivo PDF ou CDR
+                                  </>
+                                )}
+                              </Button>
+                              <p className="text-xs text-muted-foreground text-center">
+                                Tamanho máximo: 20MB
+                              </p>
+                            </>
+                          )}
+                          <input
+                            ref={artFileInputRef}
+                            type="file"
+                            accept=".pdf,.cdr,application/pdf,application/x-cdr,application/coreldraw"
+                            onChange={handleArtFileUpload}
+                            className="hidden"
+                            disabled={uploading}
+                            data-testid="input-art-file"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
