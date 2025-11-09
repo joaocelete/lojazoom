@@ -494,6 +494,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reviews routes
+  app.get("/api/products/:id/reviews", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productReviews = await storage.getProductReviews(id);
+      res.json({ reviews: productReviews });
+    } catch (error) {
+      console.error("Erro ao buscar reviews:", error);
+      res.status(500).json({ message: "Erro ao buscar reviews" });
+    }
+  });
+
+  app.post("/api/products/:id/reviews", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { rating, comment } = req.body;
+      const userId = req.user!.id;
+      const userName = req.user!.name;
+
+      if (!rating || !comment) {
+        return res.status(400).json({ message: "Rating e comentário são obrigatórios" });
+      }
+
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Rating deve ser entre 1 e 5" });
+      }
+
+      const review = await storage.createReview({
+        productId: id,
+        userId,
+        authorName: userName,
+        rating,
+        comment,
+        isVerified: true,
+      });
+
+      res.status(201).json({ review });
+    } catch (error) {
+      console.error("Erro ao criar review:", error);
+      res.status(500).json({ message: "Erro ao criar review" });
+    }
+  });
+
+  app.post("/api/admin/reviews", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { productId, authorName, rating, comment, isVerified } = req.body;
+
+      if (!productId || !authorName || !rating || !comment) {
+        return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      }
+
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Rating deve ser entre 1 e 5" });
+      }
+
+      const review = await storage.createReview({
+        productId,
+        userId: null,
+        authorName,
+        rating,
+        comment,
+        isVerified: isVerified !== undefined ? isVerified : false,
+      });
+
+      res.status(201).json({ review });
+    } catch (error) {
+      console.error("Erro ao criar review fake:", error);
+      res.status(500).json({ message: "Erro ao criar review" });
+    }
+  });
+
+  app.delete("/api/admin/reviews/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteReview(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Review não encontrado" });
+      }
+
+      res.json({ message: "Review deletado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao deletar review:", error);
+      res.status(500).json({ message: "Erro ao deletar review" });
+    }
+  });
+
   // Mercado Pago - Checkout Transparente
   const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!mpAccessToken) {

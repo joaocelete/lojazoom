@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, products, orders, orderItems, settings, type User, type InsertUser, type Product, type InsertProduct, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Setting } from "@shared/schema";
+import { users, products, orders, orderItems, settings, reviews, type User, type InsertUser, type Product, type InsertProduct, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Setting, type Review, type InsertReview } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -43,6 +43,11 @@ export interface IStorage {
   getSettings(): Promise<Setting[]>;
   getSetting(key: string): Promise<Setting | undefined>;
   setSetting(key: string, value: string): Promise<Setting>;
+  
+  // Reviews
+  getProductReviews(productId: string): Promise<Review[]>;
+  createReview(review: InsertReview): Promise<Review>;
+  deleteReview(id: string): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -196,6 +201,25 @@ export class DbStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // Reviews
+  async getProductReviews(productId: string): Promise<Review[]> {
+    const result = await db.select()
+      .from(reviews)
+      .where(eq(reviews.productId, productId))
+      .orderBy(desc(reviews.createdAt));
+    return result;
+  }
+
+  async createReview(review: InsertReview): Promise<Review> {
+    const result = await db.insert(reviews).values(review).returning();
+    return result[0];
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    const result = await db.delete(reviews).where(eq(reviews.id, id)).returning();
+    return result.length > 0;
   }
 }
 
